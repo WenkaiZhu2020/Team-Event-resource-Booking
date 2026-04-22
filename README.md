@@ -14,8 +14,24 @@ An internal platform for teams and organizations to manage events and reserve sh
 - `frontend/` frontend application
 - `infra/` local infrastructure setup
 
-## First Commit Scope
-- Repository baseline (`.gitignore`, `.env.example`, `README.md`)
-- Backend skeleton for three services: `api-gateway-service`, `auth-service`, `user-service`
-- Minimal frontend shell with Vite + React
-- Docker Compose foundation with PostgreSQL and RabbitMQ
+## Current Scope (Auth V1)
+- `auth-service`
+  - `POST /api/v1/auth/register`
+  - `POST /api/v1/auth/login`
+  - `GET /api/v1/auth/me`
+  - JWT issuing and validation
+  - PostgreSQL persistence + Flyway migration
+  - Swagger UI: `http://localhost:8081/swagger-ui.html`
+- `api-gateway-service`
+  - Routes `/api/v1/auth/**` to `auth-service`
+
+## Local Run
+1. Copy env file
+   - `cp .env.example .env`
+2. Build backend jars
+   - `mvn -f backend/pom.xml -DskipTests package`
+3. Start services
+   - `docker compose up -d --build`
+
+Gateway URL: `http://localhost:8080`
+Auth URL: `http://localhost:8081`

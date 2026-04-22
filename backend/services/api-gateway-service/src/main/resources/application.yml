@@ -4,6 +4,13 @@ server:
 spring:
   application:
     name: api-gateway-service
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service
+          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/auth/**
 
 management:
   endpoints:
