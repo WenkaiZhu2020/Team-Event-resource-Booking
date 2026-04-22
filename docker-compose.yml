@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: trms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-team_resource_mgmt}
+      POSTGRES_USER: ${POSTGRES_USER:-team_resource}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-team_resource}
+    ports:
+      - "5432:5432"
+    volumes:
+      - trms_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-team_resource} -d ${POSTGRES_DB:-team_resource_mgmt}"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: trms-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 15s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  trms_postgres_data:
