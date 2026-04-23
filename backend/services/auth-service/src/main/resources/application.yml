@@ -40,3 +40,8 @@ app:
       issuer: ${JWT_ISSUER:team-resource-auth}
       secret-base64: ${JWT_SECRET_BASE64:VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}
       access-token-minutes: ${JWT_ACCESS_TOKEN_MINUTES:60}
+  integrations:
+    user-service:
+      enabled: ${USER_SERVICE_INTEGRATION_ENABLED:false}
+      base-url: ${USER_SERVICE_BASE_URL:http://localhost:8082}
+      api-key: ${USER_SERVICE_API_KEY:change-me}

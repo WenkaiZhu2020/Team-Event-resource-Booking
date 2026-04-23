@@ -22,8 +22,17 @@ An internal platform for teams and organizations to manage events and reserve sh
   - JWT issuing and validation
   - PostgreSQL persistence + Flyway migration
   - Swagger UI: `http://localhost:8081/swagger-ui.html`
+- `user-service`
+  - `GET /api/v1/users/me`
+  - `PUT /api/v1/users/me`
+  - `GET /api/v1/preferences/notifications`
+  - `PUT /api/v1/preferences/notifications`
+  - Internal provisioning endpoint for auth registration
+  - PostgreSQL persistence + Flyway migration
+  - Swagger UI: `http://localhost:8082/swagger-ui.html`
 - `api-gateway-service`
   - Routes `/api/v1/auth/**` to `auth-service`
+  - Routes `/api/v1/users/**` and `/api/v1/preferences/**` to `user-service`
 
 ## Local Run
 1. Copy env file
@@ -35,3 +44,4 @@ An internal platform for teams and organizations to manage events and reserve sh
 
 Gateway URL: `http://localhost:8080`
 Auth URL: `http://localhost:8081`
+User URL: `http://localhost:8082`

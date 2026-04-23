@@ -26,11 +26,18 @@ public class AuthApplicationService {
     private final AppUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final UserProvisioningClient userProvisioningClient;
 
-    public AuthApplicationService(AppUserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthApplicationService(
+            AppUserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService,
+            UserProvisioningClient userProvisioningClient
+    ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.userProvisioningClient = userProvisioningClient;
     }
 
     @Transactional
@@ -50,6 +57,13 @@ public class AuthApplicationService {
         user.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
 
         AppUserEntity saved = userRepository.save(user);
+        userProvisioningClient.provisionUser(
+                saved.getId(),
+                saved.getEmail(),
+                saved.getEmail(),
+                "UTC",
+                saved.getRoles().stream().map(Role::name).collect(java.util.stream.Collectors.toSet())
+        );
         return issueAuthResponse(saved);
     }
 
