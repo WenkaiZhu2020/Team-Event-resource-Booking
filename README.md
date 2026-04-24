@@ -19,6 +19,7 @@ An internal platform for teams and organizations to manage events and reserve sh
   - Login and registration UI
   - User profile view and update form
   - Notification preference view and update form
+  - Event list and event creation workflow
   - JWT storage and API client integration
 - `auth-service`
   - `POST /api/v1/auth/register`
@@ -35,9 +36,21 @@ An internal platform for teams and organizations to manage events and reserve sh
   - Internal provisioning endpoint for auth registration
   - PostgreSQL persistence + Flyway migration
   - Swagger UI: `http://localhost:8082/swagger-ui.html`
+- `event-service`
+  - `POST /api/v1/events`
+  - `PUT /api/v1/events/{eventId}`
+  - `GET /api/v1/events`
+  - `GET /api/v1/events/me`
+  - `GET /api/v1/events/{eventId}`
+  - `POST /api/v1/events/{eventId}/publish`
+  - `POST /api/v1/events/{eventId}/cancel`
+  - Organizer ownership, draft/publish/cancel lifecycle
+  - PostgreSQL persistence + Flyway migration
+  - Swagger UI: `http://localhost:8083/swagger-ui.html`
 - `api-gateway-service`
   - Routes `/api/v1/auth/**` to `auth-service`
   - Routes `/api/v1/users/**` and `/api/v1/preferences/**` to `user-service`
+  - Routes `/api/v1/events/**` to `event-service`
 
 ## Local Run
 1. Copy env file
@@ -50,3 +63,4 @@ An internal platform for teams and organizations to manage events and reserve sh
 Gateway URL: `http://localhost:8080`
 Auth URL: `http://localhost:8081`
 User URL: `http://localhost:8082`
+Event URL: `http://localhost:8083`

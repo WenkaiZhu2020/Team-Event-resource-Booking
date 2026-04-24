@@ -1,0 +1,41 @@
+server:
+  port: ${SERVER_PORT:8083}
+
+spring:
+  application:
+    name: event-service
+  datasource:
+    url: ${EVENT_DB_URL:jdbc:postgresql://localhost:5432/team_resource_mgmt}
+    username: ${EVENT_DB_USERNAME:team_resource}
+    password: ${EVENT_DB_PASSWORD:team_resource}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: events
+  flyway:
+    enabled: true
+    default-schema: events
+    schemas: events
+    locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+app:
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:team-resource-auth}
+      secret-base64: ${JWT_SECRET_BASE64:VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}

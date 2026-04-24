@@ -1,4 +1,4 @@
-import type { AuthResponse, NotificationPreference, UserProfile } from './types';
+import type { AuthResponse, EventDraft, EventItem, NotificationPreference, UserProfile } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 const ACCESS_TOKEN_KEY = 'trms_access_token';
@@ -68,6 +68,38 @@ export async function updateNotificationPreferences(payload: NotificationPrefere
   return request<NotificationPreference>('/v1/preferences/notifications', {
     method: 'PUT',
     body: JSON.stringify(payload)
+  });
+}
+
+export async function getEvents() {
+  return request<EventItem[]>('/v1/events');
+}
+
+export async function getMyEvents() {
+  return request<EventItem[]>('/v1/events/me');
+}
+
+export async function createEvent(payload: EventDraft) {
+  return request<EventItem>('/v1/events', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...payload,
+      capacity: Number(payload.capacity),
+      registrationOpenAt: payload.registrationOpenAt || null,
+      registrationCloseAt: payload.registrationCloseAt || null
+    })
+  });
+}
+
+export async function publishEvent(eventId: string) {
+  return request<EventItem>(`/v1/events/${eventId}/publish`, {
+    method: 'POST'
+  });
+}
+
+export async function cancelEvent(eventId: string) {
+  return request<EventItem>(`/v1/events/${eventId}/cancel`, {
+    method: 'POST'
   });
 }
 

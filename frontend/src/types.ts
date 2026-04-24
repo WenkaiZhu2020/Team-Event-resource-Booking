@@ -32,3 +32,32 @@ export interface NotificationPreference {
   emailEnabled: boolean;
   reminderMinutesBefore: number;
 }
+
+export interface EventItem {
+  eventId: string;
+  organizerId: string;
+  title: string;
+  description: string | null;
+  category: string;
+  location: string;
+  capacity: number;
+  registrationOpenAt: string | null;
+  registrationCloseAt: string | null;
+  startAt: string;
+  endAt: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EventDraft {
+  title: string;
+  description: string;
+  category: string;
+  location: string;
+  capacity: number;
+  registrationOpenAt: string;
+  registrationCloseAt: string;
+  startAt: string;
+  endAt: string;
+}
