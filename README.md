@@ -15,6 +15,11 @@ An internal platform for teams and organizations to manage events and reserve sh
 - `infra/` local infrastructure setup
 
 ## Current Scope (Auth V1)
+- `frontend`
+  - Login and registration UI
+  - User profile view and update form
+  - Notification preference view and update form
+  - JWT storage and API client integration
 - `auth-service`
   - `POST /api/v1/auth/register`
   - `POST /api/v1/auth/login`
