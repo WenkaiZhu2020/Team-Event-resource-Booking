@@ -14,7 +14,7 @@ An internal platform for teams and organizations to manage events and reserve sh
 - `frontend/` frontend application
 - `infra/` local infrastructure setup
 
-## Current Scope (Auth V1)
+## Current Scope
 - `frontend`
   - Login and registration UI
   - User profile view and update form
@@ -47,10 +47,24 @@ An internal platform for teams and organizations to manage events and reserve sh
   - Organizer ownership, draft/publish/cancel lifecycle
   - PostgreSQL persistence + Flyway migration
   - Swagger UI: `http://localhost:8083/swagger-ui.html`
+- `resource-service`
+  - `POST /api/v1/resources`
+  - `PUT /api/v1/resources/{resourceId}`
+  - `GET /api/v1/resources`
+  - `GET /api/v1/resources/me`
+  - `GET /api/v1/resources/{resourceId}`
+  - `POST /api/v1/resources/{resourceId}/activate`
+  - `POST /api/v1/resources/{resourceId}/deactivate`
+  - `POST /api/v1/resources/{resourceId}/maintenance`
+  - `DELETE /api/v1/resources/{resourceId}/maintenance/{slotId}`
+  - Resource catalog, policy defaults, approval mode settings, maintenance windows
+  - PostgreSQL persistence + Flyway migration
+  - Swagger UI: `http://localhost:8084/swagger-ui.html`
 - `api-gateway-service`
   - Routes `/api/v1/auth/**` to `auth-service`
   - Routes `/api/v1/users/**` and `/api/v1/preferences/**` to `user-service`
   - Routes `/api/v1/events/**` to `event-service`
+  - Routes `/api/v1/resources/**` to `resource-service`
 
 ## Local Run
 1. Copy env file
@@ -64,3 +78,4 @@ Gateway URL: `http://localhost:8080`
 Auth URL: `http://localhost:8081`
 User URL: `http://localhost:8082`
 Event URL: `http://localhost:8083`
+Resource URL: `http://localhost:8084`

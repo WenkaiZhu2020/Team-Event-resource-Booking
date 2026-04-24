@@ -13,6 +13,7 @@
         <module>services/auth-service</module>
         <module>services/user-service</module>
         <module>services/event-service</module>
+        <module>services/resource-service</module>
     </modules>
 
     <properties>

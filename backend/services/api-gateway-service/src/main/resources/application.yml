@@ -19,6 +19,10 @@ spring:
           uri: ${EVENT_SERVICE_URL:http://localhost:8083}
           predicates:
             - Path=/api/v1/events/**
+        - id: resource-service
+          uri: ${RESOURCE_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/v1/resources/**
 
 management:
   endpoints:
