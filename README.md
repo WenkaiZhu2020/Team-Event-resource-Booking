@@ -60,11 +60,24 @@ An internal platform for teams and organizations to manage events and reserve sh
   - Resource catalog, policy defaults, approval mode settings, maintenance windows
   - PostgreSQL persistence + Flyway migration
   - Swagger UI: `http://localhost:8084/swagger-ui.html`
+- `booking-service`
+  - `POST /api/v1/bookings`
+  - `GET /api/v1/bookings/me`
+  - `GET /api/v1/bookings/{bookingId}`
+  - `POST /api/v1/bookings/{bookingId}/cancel`
+  - `GET /api/v1/bookings/approvals/pending`
+  - `POST /api/v1/bookings/{bookingId}/approve`
+  - `POST /api/v1/bookings/{bookingId}/reject`
+  - Concurrency-safe resource locking, approval-aware booking states, waitlist promotion, idempotency key support, outbox records
+  - Synchronous integration with `resource-service` and `event-service`
+  - PostgreSQL persistence + Flyway migration
+  - Swagger UI: `http://localhost:8085/swagger-ui.html`
 - `api-gateway-service`
   - Routes `/api/v1/auth/**` to `auth-service`
   - Routes `/api/v1/users/**` and `/api/v1/preferences/**` to `user-service`
   - Routes `/api/v1/events/**` to `event-service`
   - Routes `/api/v1/resources/**` to `resource-service`
+  - Routes `/api/v1/bookings/**` to `booking-service`
 
 ## Local Run
 1. Copy env file
@@ -79,3 +92,4 @@ Auth URL: `http://localhost:8081`
 User URL: `http://localhost:8082`
 Event URL: `http://localhost:8083`
 Resource URL: `http://localhost:8084`
+Booking URL: `http://localhost:8085`

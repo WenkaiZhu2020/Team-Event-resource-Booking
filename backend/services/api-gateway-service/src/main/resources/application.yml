@@ -23,6 +23,10 @@ spring:
           uri: ${RESOURCE_SERVICE_URL:http://localhost:8084}
           predicates:
             - Path=/api/v1/resources/**
+        - id: booking-service
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/v1/bookings/**
 
 management:
   endpoints:

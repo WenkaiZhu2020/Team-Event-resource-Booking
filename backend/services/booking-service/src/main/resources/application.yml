@@ -1,0 +1,44 @@
+server:
+  port: ${SERVER_PORT:8085}
+
+spring:
+  application:
+    name: booking-service
+  datasource:
+    url: ${BOOKING_DB_URL:jdbc:postgresql://localhost:5432/team_resource_mgmt}
+    username: ${BOOKING_DB_USERNAME:team_resource}
+    password: ${BOOKING_DB_PASSWORD:team_resource}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: bookings
+  flyway:
+    enabled: true
+    default-schema: bookings
+    schemas: bookings
+    locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+app:
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:team-resource-auth}
+      secret-base64: ${JWT_SECRET_BASE64:VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}
+  clients:
+    resource-service-base-url: ${RESOURCE_SERVICE_BASE_URL:http://localhost:8084}
+    event-service-base-url: ${EVENT_SERVICE_BASE_URL:http://localhost:8083}

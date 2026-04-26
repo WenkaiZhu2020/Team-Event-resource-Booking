@@ -14,6 +14,7 @@
         <module>services/user-service</module>
         <module>services/event-service</module>
         <module>services/resource-service</module>
+        <module>services/booking-service</module>
     </modules>
 
     <properties>
