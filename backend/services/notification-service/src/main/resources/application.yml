@@ -44,3 +44,12 @@ app:
     jwt:
       issuer: ${JWT_ISSUER:team-resource-auth}
       secret-base64: ${JWT_SECRET_BASE64:VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}
+  clients:
+    event-service-base-url: ${EVENT_SERVICE_BASE_URL:http://localhost:8083}
+    event-service-api-key: ${EVENT_SERVICE_API_KEY:change-me}
+    internal-api-header-name: ${INTERNAL_API_KEY_HEADER:X-Internal-Api-Key}
+  reminders:
+    enabled: ${EVENT_REMINDER_ENABLED:true}
+    fixed-delay-ms: ${EVENT_REMINDER_FIXED_DELAY_MS:900000}
+    initial-delay-ms: ${EVENT_REMINDER_INITIAL_DELAY_MS:30000}
+    lookahead-hours: ${EVENT_REMINDER_LOOKAHEAD_HOURS:24}

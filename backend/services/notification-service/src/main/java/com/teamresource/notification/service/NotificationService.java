@@ -3,6 +3,7 @@ package com.teamresource.notification.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teamresource.notification.api.dto.NotificationResponse;
 import com.teamresource.notification.api.dto.UnreadCountResponse;
+import com.teamresource.notification.infra.client.EventReminderCandidate;
 import com.teamresource.notification.domain.NotificationChannel;
 import com.teamresource.notification.domain.NotificationStatus;
 import com.teamresource.notification.infra.messaging.BookingEventPayload;
@@ -12,8 +13,10 @@ import com.teamresource.notification.infra.persistence.NotificationRecordReposit
 import com.teamresource.notification.infra.persistence.ProcessedEventEntity;
 import com.teamresource.notification.infra.persistence.ProcessedEventRepository;
 import com.teamresource.notification.service.channel.NotificationSenderFactory;
+import com.teamresource.notification.service.template.EventReminderTemplateRenderer;
 import com.teamresource.notification.service.template.NotificationTemplateRegistry;
 import com.teamresource.notification.service.template.RenderedNotification;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -32,6 +35,7 @@ public class NotificationService {
     private final ProcessedEventRepository processedEventRepository;
     private final NotificationSenderFactory notificationSenderFactory;
     private final NotificationTemplateRegistry templateRegistry;
+    private final EventReminderTemplateRenderer eventReminderTemplateRenderer;
     private final ObjectMapper objectMapper;
 
     public NotificationService(
@@ -39,33 +43,40 @@ public class NotificationService {
             ProcessedEventRepository processedEventRepository,
             NotificationSenderFactory notificationSenderFactory,
             NotificationTemplateRegistry templateRegistry,
+            EventReminderTemplateRenderer eventReminderTemplateRenderer,
             ObjectMapper objectMapper
     ) {
         this.notificationRecordRepository = notificationRecordRepository;
         this.processedEventRepository = processedEventRepository;
         this.notificationSenderFactory = notificationSenderFactory;
         this.templateRegistry = templateRegistry;
+        this.eventReminderTemplateRenderer = eventReminderTemplateRenderer;
         this.objectMapper = objectMapper;
     }
 
     @Transactional
     public void consume(DomainEventMessage eventMessage) {
-        try {
-            ProcessedEventEntity processedEvent = new ProcessedEventEntity();
-            processedEvent.setProcessedEventId(eventMessage.messageId());
-            processedEvent.setEventType(eventMessage.eventType());
-            processedEvent.setAggregateId(eventMessage.aggregateId());
-            processedEvent.setProcessedAt(OffsetDateTime.now(ZoneOffset.UTC));
-            processedEventRepository.save(processedEvent);
-        } catch (DataIntegrityViolationException ignored) {
+        if (!markProcessed(eventMessage.messageId(), eventMessage.eventType(), eventMessage.aggregateId())) {
             return;
         }
 
         BookingEventPayload payload = objectMapper.convertValue(eventMessage.payload(), BookingEventPayload.class);
         RenderedNotification rendered = templateRegistry.resolve(eventMessage.eventType()).render(payload);
 
-        createAndSend(eventMessage, payload.userId(), NotificationChannel.IN_APP, rendered);
-        createAndSend(eventMessage, payload.userId(), NotificationChannel.EMAIL, rendered);
+        createAndSend(eventMessage.messageId(), eventMessage.eventType(), payload.userId(), rendered);
+    }
+
+    @Transactional
+    public void sendEventReminder(EventReminderCandidate reminder) {
+        UUID processedId = UUID.nameUUIDFromBytes(
+                ("event.reminder:" + reminder.registrationId()).getBytes(StandardCharsets.UTF_8)
+        );
+        if (!markProcessed(processedId, "event.reminder", reminder.registrationId())) {
+            return;
+        }
+
+        RenderedNotification rendered = eventReminderTemplateRenderer.render(reminder);
+        createAndSend(reminder.eventId(), "event.reminder", reminder.userId(), rendered);
     }
 
     @Transactional(readOnly = true)
@@ -97,8 +108,28 @@ public class NotificationService {
         return toResponse(notificationRecordRepository.save(record));
     }
 
+    private boolean markProcessed(UUID processedEventId, String eventType, UUID aggregateId) {
+        try {
+            ProcessedEventEntity processedEvent = new ProcessedEventEntity();
+            processedEvent.setProcessedEventId(processedEventId);
+            processedEvent.setEventType(eventType);
+            processedEvent.setAggregateId(aggregateId);
+            processedEvent.setProcessedAt(OffsetDateTime.now(ZoneOffset.UTC));
+            processedEventRepository.save(processedEvent);
+            return true;
+        } catch (DataIntegrityViolationException ignored) {
+            return false;
+        }
+    }
+
+    private void createAndSend(UUID sourceEventId, String sourceEventType, UUID userId, RenderedNotification rendered) {
+        createAndSend(sourceEventId, sourceEventType, userId, NotificationChannel.IN_APP, rendered);
+        createAndSend(sourceEventId, sourceEventType, userId, NotificationChannel.EMAIL, rendered);
+    }
+
     private void createAndSend(
-            DomainEventMessage eventMessage,
+            UUID sourceEventId,
+            String sourceEventType,
             UUID userId,
             NotificationChannel channel,
             RenderedNotification rendered
@@ -107,8 +138,8 @@ public class NotificationService {
         NotificationRecordEntity record = new NotificationRecordEntity();
         record.setNotificationId(UUID.randomUUID());
         record.setUserId(userId);
-        record.setSourceEventId(eventMessage.messageId());
-        record.setSourceEventType(eventMessage.eventType());
+        record.setSourceEventId(sourceEventId);
+        record.setSourceEventType(sourceEventType);
         record.setNotificationType(rendered.type());
         record.setChannel(channel);
         record.setSubject(rendered.subject());

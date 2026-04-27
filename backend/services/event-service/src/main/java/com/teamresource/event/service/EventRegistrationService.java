@@ -1,6 +1,7 @@
 package com.teamresource.event.service;
 
 import com.teamresource.event.api.dto.EventRegistrationResponse;
+import com.teamresource.event.api.dto.EventReminderCandidateResponse;
 import com.teamresource.event.domain.EventRegistrationStatus;
 import com.teamresource.event.domain.EventStatus;
 import com.teamresource.event.infra.persistence.EventEntity;
@@ -126,6 +127,23 @@ public class EventRegistrationService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Event registration access denied");
         }
         return eventRegistrationRepository.findByEventIdOrderByCreatedAtAsc(eventId).stream().map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<EventReminderCandidateResponse> dueReminders(OffsetDateTime windowStart, OffsetDateTime windowEnd) {
+        if (!windowEnd.isAfter(windowStart)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "windowEnd must be after windowStart");
+        }
+        return eventRegistrationRepository.findDueReminderCandidates(windowStart, windowEnd).stream()
+                .map(candidate -> new EventReminderCandidateResponse(
+                        candidate.getRegistrationId(),
+                        candidate.getEventId(),
+                        candidate.getUserId(),
+                        candidate.getEventTitle(),
+                        candidate.getLocation(),
+                        candidate.getStartAt()
+                ))
+                .toList();
     }
 
     @Transactional

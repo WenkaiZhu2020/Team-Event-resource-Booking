@@ -50,6 +50,7 @@ An internal platform for teams and organizations to manage events and reserve sh
   - `GET /api/v1/events/registrations/me`
   - `GET /api/v1/events/{eventId}/registrations`
   - `POST /api/v1/events/{eventId}/registrations/{registrationId}/check-in`
+  - `GET /api/v1/internal/events/reminders/due`
   - Organizer ownership, draft/publish/cancel lifecycle, event registration, waitlist promotion, attendee/waitlist/check-in projections
   - PostgreSQL persistence + Flyway migration
   - Swagger UI: `http://localhost:8083/swagger-ui.html`
@@ -83,6 +84,7 @@ An internal platform for teams and organizations to manage events and reserve sh
   - `GET /api/v1/notifications/me/unread-count`
   - `POST /api/v1/notifications/{notificationId}/read`
   - RabbitMQ consumer for `booking.*` domain events
+  - Scheduled event reminders pulled from `event-service`
   - In-app and email-simulation channels
   - Processed-event idempotency tracking
   - PostgreSQL persistence + Flyway migration
