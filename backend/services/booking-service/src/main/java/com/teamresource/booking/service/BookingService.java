@@ -7,6 +7,7 @@ import com.teamresource.booking.domain.ApprovalMode;
 import com.teamresource.booking.domain.BookingStatus;
 import com.teamresource.booking.infra.client.EventClient;
 import com.teamresource.booking.infra.client.ResourceClient;
+import com.teamresource.booking.infra.client.WorkflowClient;
 import com.teamresource.booking.infra.persistence.BookingEntity;
 import com.teamresource.booking.infra.persistence.BookingLockEntity;
 import com.teamresource.booking.infra.persistence.BookingLockRepository;
@@ -38,6 +39,7 @@ public class BookingService {
     private final IdempotencyRecordRepository idempotencyRecordRepository;
     private final ResourceClient resourceClient;
     private final EventClient eventClient;
+    private final WorkflowClient workflowClient;
     private final BookingOutboxService bookingOutboxService;
 
     public BookingService(
@@ -46,6 +48,7 @@ public class BookingService {
             IdempotencyRecordRepository idempotencyRecordRepository,
             ResourceClient resourceClient,
             EventClient eventClient,
+            WorkflowClient workflowClient,
             BookingOutboxService bookingOutboxService
     ) {
         this.bookingRepository = bookingRepository;
@@ -53,6 +56,7 @@ public class BookingService {
         this.idempotencyRecordRepository = idempotencyRecordRepository;
         this.resourceClient = resourceClient;
         this.eventClient = eventClient;
+        this.workflowClient = workflowClient;
         this.bookingOutboxService = bookingOutboxService;
     }
 
@@ -113,6 +117,9 @@ public class BookingService {
         BookingEntity saved = bookingRepository.save(entity);
         storeIdempotencyRecord(saved, userId, idempotencyKey, now);
         BookingResponse response = toResponse(saved);
+        if (saved.getStatus() == BookingStatus.PENDING_APPROVAL) {
+            workflowClient.createBookingApproval(response);
+        }
         bookingOutboxService.record("booking.created", response);
         return response;
     }
@@ -165,6 +172,27 @@ public class BookingService {
     public BookingResponse approve(UUID bookingId, UUID currentUserId, boolean admin, BookingDecisionRequest request) {
         BookingEntity entity = findBooking(bookingId);
         requireApprover(entity, currentUserId, admin);
+        return approveEntity(entity, trimToNull(request.note()));
+    }
+
+    @Transactional
+    public BookingResponse reject(UUID bookingId, UUID currentUserId, boolean admin, BookingDecisionRequest request) {
+        BookingEntity entity = findBooking(bookingId);
+        requireApprover(entity, currentUserId, admin);
+        return rejectEntity(entity, trimToNull(request.note()));
+    }
+
+    @Transactional
+    public BookingResponse applyWorkflowDecision(UUID bookingId, String decision, String note) {
+        BookingEntity entity = findBooking(bookingId);
+        return switch (decision.trim().toUpperCase(Locale.ROOT)) {
+            case "APPROVED" -> approveEntity(entity, trimToNull(note));
+            case "REJECTED" -> rejectEntity(entity, trimToNull(note));
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid workflow decision");
+        };
+    }
+
+    private BookingResponse approveEntity(BookingEntity entity, String note) {
         if (entity.getStatus() != BookingStatus.PENDING_APPROVAL) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only pending bookings can be approved");
         }
@@ -174,7 +202,7 @@ public class BookingService {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         entity.setStatus(BookingStatus.APPROVED);
         entity.setDecidedAt(now);
-        entity.setDecisionNote(trimToNull(request.note()));
+        entity.setDecisionNote(note);
         entity.setUpdatedAt(now);
         BookingEntity saved = bookingRepository.save(entity);
         BookingResponse response = toResponse(saved);
@@ -182,10 +210,7 @@ public class BookingService {
         return response;
     }
 
-    @Transactional
-    public BookingResponse reject(UUID bookingId, UUID currentUserId, boolean admin, BookingDecisionRequest request) {
-        BookingEntity entity = findBooking(bookingId);
-        requireApprover(entity, currentUserId, admin);
+    private BookingResponse rejectEntity(BookingEntity entity, String note) {
         if (entity.getStatus() != BookingStatus.PENDING_APPROVAL) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only pending bookings can be rejected");
         }
@@ -194,7 +219,7 @@ public class BookingService {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         entity.setStatus(BookingStatus.REJECTED);
         entity.setDecidedAt(now);
-        entity.setDecisionNote(trimToNull(request.note()));
+        entity.setDecisionNote(note);
         entity.setUpdatedAt(now);
         BookingEntity saved = bookingRepository.save(entity);
         BookingResponse response = toResponse(saved);
@@ -343,7 +368,11 @@ public class BookingService {
             }
             candidate.setUpdatedAt(now);
             BookingEntity saved = bookingRepository.save(candidate);
-            bookingOutboxService.record("booking.waitlist.promoted", toResponse(saved));
+            BookingResponse response = toResponse(saved);
+            if (saved.getStatus() == BookingStatus.PENDING_APPROVAL) {
+                workflowClient.createBookingApproval(response);
+            }
+            bookingOutboxService.record("booking.waitlist.promoted", response);
         }
     }
 

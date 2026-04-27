@@ -1,4 +1,16 @@
-import type { AuthResponse, EventDraft, EventItem, NotificationPreference, UserProfile } from './types';
+import type {
+  ApprovalItem,
+  AuthResponse,
+  BookingDraft,
+  BookingItem,
+  EventDraft,
+  EventItem,
+  NotificationItem,
+  NotificationPreference,
+  ResourceItem,
+  UnreadCount,
+  UserProfile
+} from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 const ACCESS_TOKEN_KEY = 'trms_access_token';
@@ -85,8 +97,10 @@ export async function createEvent(payload: EventDraft) {
     body: JSON.stringify({
       ...payload,
       capacity: Number(payload.capacity),
-      registrationOpenAt: payload.registrationOpenAt || null,
-      registrationCloseAt: payload.registrationCloseAt || null
+      registrationOpenAt: toApiDateTime(payload.registrationOpenAt),
+      registrationCloseAt: toApiDateTime(payload.registrationCloseAt),
+      startAt: toApiDateTime(payload.startAt),
+      endAt: toApiDateTime(payload.endAt)
     })
   });
 }
@@ -100,6 +114,65 @@ export async function publishEvent(eventId: string) {
 export async function cancelEvent(eventId: string) {
   return request<EventItem>(`/v1/events/${eventId}/cancel`, {
     method: 'POST'
+  });
+}
+
+export async function getResources() {
+  return request<ResourceItem[]>('/v1/resources');
+}
+
+export async function getMyBookings() {
+  return request<BookingItem[]>('/v1/bookings/me');
+}
+
+export async function createBooking(payload: BookingDraft) {
+  return request<BookingItem>('/v1/bookings', {
+    method: 'POST',
+    body: JSON.stringify({
+      resourceId: payload.resourceId,
+      linkedEventId: payload.linkedEventId || null,
+      startAt: toApiDateTime(payload.startAt),
+      endAt: toApiDateTime(payload.endAt),
+      purpose: payload.purpose
+    })
+  });
+}
+
+export async function cancelBooking(bookingId: string) {
+  return request<BookingItem>(`/v1/bookings/${bookingId}/cancel`, {
+    method: 'POST'
+  });
+}
+
+export async function getNotifications() {
+  return request<NotificationItem[]>('/v1/notifications/me');
+}
+
+export async function getUnreadCount() {
+  return request<UnreadCount>('/v1/notifications/me/unread-count');
+}
+
+export async function markNotificationRead(notificationId: string) {
+  return request<NotificationItem>(`/v1/notifications/${notificationId}/read`, {
+    method: 'POST'
+  });
+}
+
+export async function getPendingApprovals() {
+  return request<ApprovalItem[]>('/v1/workflows/approvals/pending');
+}
+
+export async function approveApproval(approvalId: string, note?: string) {
+  return request<ApprovalItem>(`/v1/workflows/approvals/${approvalId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ note: note || null })
+  });
+}
+
+export async function rejectApproval(approvalId: string, note?: string) {
+  return request<ApprovalItem>(`/v1/workflows/approvals/${approvalId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ note: note || null })
   });
 }
 
@@ -130,4 +203,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   return payload as T;
+}
+
+function toApiDateTime(value: string) {
+  if (!value) {
+    return null;
+  }
+  return new Date(value).toISOString();
 }

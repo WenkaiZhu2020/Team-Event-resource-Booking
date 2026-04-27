@@ -143,6 +143,9 @@ services:
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
       RESOURCE_SERVICE_BASE_URL: http://resource-service:8084
       EVENT_SERVICE_BASE_URL: http://event-service:8083
+      WORKFLOW_SERVICE_BASE_URL: http://workflow-service:8087
+      BOOKING_SERVICE_API_KEY: ${BOOKING_SERVICE_API_KEY:-change-me}
+      WORKFLOW_SERVICE_API_KEY: ${WORKFLOW_SERVICE_API_KEY:-change-me}
     ports:
       - "8085:8085"
 
@@ -171,6 +174,30 @@ services:
     ports:
       - "8086:8086"
 
+  workflow-service:
+    build:
+      context: ./backend
+      dockerfile: services/workflow-service/Dockerfile
+    container_name: trms-workflow
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      booking-service:
+        condition: service_started
+    environment:
+      SERVER_PORT: 8087
+      WORKFLOW_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-team_resource_mgmt}
+      WORKFLOW_DB_USERNAME: ${POSTGRES_USER:-team_resource}
+      WORKFLOW_DB_PASSWORD: ${POSTGRES_PASSWORD:-team_resource}
+      JWT_ISSUER: ${JWT_ISSUER:-team-resource-auth}
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}
+      WORKFLOW_SERVICE_API_KEY: ${WORKFLOW_SERVICE_API_KEY:-change-me}
+      BOOKING_SERVICE_BASE_URL: http://booking-service:8085
+      BOOKING_SERVICE_API_KEY: ${BOOKING_SERVICE_API_KEY:-change-me}
+    ports:
+      - "8087:8087"
+
   api-gateway-service:
     build:
       context: ./backend
@@ -190,6 +217,8 @@ services:
         condition: service_started
       notification-service:
         condition: service_started
+      workflow-service:
+        condition: service_started
     environment:
       SERVER_PORT: 8080
       AUTH_SERVICE_URL: http://auth-service:8081
@@ -198,6 +227,7 @@ services:
       RESOURCE_SERVICE_URL: http://resource-service:8084
       BOOKING_SERVICE_URL: http://booking-service:8085
       NOTIFICATION_SERVICE_URL: http://notification-service:8086
+      WORKFLOW_SERVICE_URL: http://workflow-service:8087
     ports:
       - "8080:8080"
 

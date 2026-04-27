@@ -61,3 +61,103 @@ export interface EventDraft {
   startAt: string;
   endAt: string;
 }
+
+export interface ResourceItem {
+  resourceId: string;
+  managerId: string;
+  name: string;
+  description: string | null;
+  type: string;
+  location: string;
+  capacity: number | null;
+  status: string;
+  approvalMode: string;
+  requiresApproval: boolean;
+  allowWaitlist: boolean;
+  maxBookingDurationMinutes: number;
+  advanceBookingWindowDays: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BookingItem {
+  bookingId: string;
+  userId: string;
+  linkedEventId: string | null;
+  resourceId: string;
+  resourceName: string;
+  resourceManagerId: string;
+  resourceType: string;
+  startAt: string;
+  endAt: string;
+  purpose: string;
+  status: string;
+  approvalMode: string;
+  waitlistPosition: number | null;
+  approvalRequestedAt: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BookingDraft {
+  resourceId: string;
+  linkedEventId: string;
+  startAt: string;
+  endAt: string;
+  purpose: string;
+}
+
+export interface NotificationItem {
+  notificationId: string;
+  userId: string;
+  sourceEventId: string;
+  sourceEventType: string;
+  notificationType: string;
+  channel: string;
+  subject: string;
+  body: string;
+  status: string;
+  readAt: string | null;
+  sentAt: string | null;
+  failureReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UnreadCount {
+  unreadCount: number;
+}
+
+export interface ApprovalHistoryItem {
+  decisionId: string;
+  action: string;
+  actorId: string | null;
+  note: string | null;
+  actedAt: string;
+  createdAt: string;
+}
+
+export interface ApprovalItem {
+  approvalId: string;
+  targetType: string;
+  targetId: string;
+  approvalType: string;
+  requesterId: string;
+  approverId: string;
+  targetOwnerId: string | null;
+  resourceId: string | null;
+  title: string;
+  summary: string | null;
+  currentStep: number;
+  totalSteps: number;
+  status: string;
+  submittedAt: string;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+  history: ApprovalHistoryItem[];
+}
