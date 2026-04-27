@@ -66,6 +66,7 @@ class EventControllerTest {
                 50,
                 12,
                 3,
+                5,
                 OffsetDateTime.parse("2026-05-01T09:00:00Z"),
                 OffsetDateTime.parse("2026-05-30T23:00:00Z"),
                 OffsetDateTime.parse("2026-06-01T09:00:00Z"),
@@ -80,7 +81,8 @@ class EventControllerTest {
                 .andExpect(jsonPath("$.data[0].eventId").value(eventId.toString()))
                 .andExpect(jsonPath("$.data[0].status").value("PUBLISHED"))
                 .andExpect(jsonPath("$.data[0].attendeeProjectedCount").value(12))
-                .andExpect(jsonPath("$.data[0].waitlistProjectedCount").value(3));
+                .andExpect(jsonPath("$.data[0].waitlistProjectedCount").value(3))
+                .andExpect(jsonPath("$.data[0].checkedInCount").value(5));
     }
 
     @Test
@@ -117,6 +119,7 @@ class EventControllerTest {
                 50,
                 0,
                 0,
+                0,
                 OffsetDateTime.parse("2026-05-01T09:00:00Z"),
                 OffsetDateTime.parse("2026-05-30T23:00:00Z"),
                 OffsetDateTime.parse("2026-06-01T09:00:00Z"),
@@ -144,6 +147,8 @@ class EventControllerTest {
                 null,
                 OffsetDateTime.parse("2026-05-01T09:00:00Z"),
                 null,
+                null,
+                null,
                 OffsetDateTime.parse("2026-05-01T09:00:00Z")
         );
 
@@ -152,6 +157,32 @@ class EventControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.eventId").value(eventId.toString()))
                 .andExpect(jsonPath("$.data.status").value("REGISTERED"));
+    }
+
+    @Test
+    void checkInShouldReturnUpdatedRegistration() throws Exception {
+        UUID eventId = UUID.randomUUID();
+        UUID registrationId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        TestingAuthenticationToken authentication =
+                new TestingAuthenticationToken(organizerId.toString(), null, "ROLE_ORGANIZER");
+        eventRegistrationService.checkInResponse = new EventRegistrationResponse(
+                registrationId,
+                eventId,
+                UUID.randomUUID(),
+                "REGISTERED",
+                null,
+                OffsetDateTime.parse("2026-05-01T09:00:00Z"),
+                null,
+                OffsetDateTime.parse("2026-06-01T09:10:00Z"),
+                organizerId,
+                OffsetDateTime.parse("2026-06-01T09:10:00Z")
+        );
+
+        mockMvc.perform(post("/api/v1/events/{eventId}/registrations/{registrationId}/check-in", eventId, registrationId)
+                        .principal(authentication))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.checkedInBy").value(organizerId.toString()));
     }
 
     @TestConfiguration
@@ -201,6 +232,7 @@ class EventControllerTest {
     static class StubEventRegistrationService extends EventRegistrationService {
 
         private EventRegistrationResponse registrationResponse;
+        private EventRegistrationResponse checkInResponse;
 
         StubEventRegistrationService() {
             super(null, null);
@@ -209,6 +241,11 @@ class EventControllerTest {
         @Override
         public EventRegistrationResponse register(UUID eventId, UUID userId) {
             return registrationResponse;
+        }
+
+        @Override
+        public EventRegistrationResponse checkIn(UUID eventId, UUID registrationId, UUID currentUserId, boolean admin) {
+            return checkInResponse;
         }
     }
 }

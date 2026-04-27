@@ -13,6 +13,7 @@ public record EventResponse(
         int capacity,
         int attendeeProjectedCount,
         int waitlistProjectedCount,
+        int checkedInCount,
         OffsetDateTime registrationOpenAt,
         OffsetDateTime registrationCloseAt,
         OffsetDateTime startAt,

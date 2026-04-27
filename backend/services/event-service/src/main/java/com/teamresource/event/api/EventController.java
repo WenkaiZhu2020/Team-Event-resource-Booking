@@ -110,6 +110,21 @@ public class EventController {
         ));
     }
 
+    @PostMapping("/{eventId}/registrations/{registrationId}/check-in")
+    public ApiResponse<EventRegistrationResponse> checkIn(
+            @PathVariable UUID eventId,
+            @PathVariable UUID registrationId,
+            Principal principal,
+            Authentication authentication
+    ) {
+        return ApiResponse.of(eventRegistrationService.checkIn(
+                eventId,
+                registrationId,
+                parsePrincipal(principal),
+                hasRole(authentication, "ROLE_ADMIN")
+        ));
+    }
+
     private UUID parsePrincipal(Principal principal) {
         try {
             return UUID.fromString(principal.getName());

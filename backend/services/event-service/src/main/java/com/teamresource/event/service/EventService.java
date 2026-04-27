@@ -41,6 +41,7 @@ public class EventService {
         entity.setCapacity(request.capacity());
         entity.setAttendeeProjectedCount(0);
         entity.setWaitlistProjectedCount(0);
+        entity.setCheckedInCount(0);
         entity.setRegistrationOpenAt(request.registrationOpenAt());
         entity.setRegistrationCloseAt(request.registrationCloseAt());
         entity.setStartAt(request.startAt());
@@ -158,6 +159,7 @@ public class EventService {
                 entity.getCapacity(),
                 entity.getAttendeeProjectedCount(),
                 entity.getWaitlistProjectedCount(),
+                entity.getCheckedInCount(),
                 entity.getRegistrationOpenAt(),
                 entity.getRegistrationCloseAt(),
                 entity.getStartAt(),

@@ -11,6 +11,8 @@ public record EventRegistrationResponse(
         Integer waitlistPosition,
         OffsetDateTime registeredAt,
         OffsetDateTime cancelledAt,
+        OffsetDateTime checkedInAt,
+        UUID checkedInBy,
         OffsetDateTime updatedAt
 ) {
 }

@@ -42,6 +42,12 @@ public class EventRegistrationEntity {
     @Column(name = "cancelled_at")
     private OffsetDateTime cancelledAt;
 
+    @Column(name = "checked_in_at")
+    private OffsetDateTime checkedInAt;
+
+    @Column(name = "checked_in_by")
+    private UUID checkedInBy;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -62,6 +68,10 @@ public class EventRegistrationEntity {
     public void setRegisteredAt(OffsetDateTime registeredAt) { this.registeredAt = registeredAt; }
     public OffsetDateTime getCancelledAt() { return cancelledAt; }
     public void setCancelledAt(OffsetDateTime cancelledAt) { this.cancelledAt = cancelledAt; }
+    public OffsetDateTime getCheckedInAt() { return checkedInAt; }
+    public void setCheckedInAt(OffsetDateTime checkedInAt) { this.checkedInAt = checkedInAt; }
+    public UUID getCheckedInBy() { return checkedInBy; }
+    public void setCheckedInBy(UUID checkedInBy) { this.checkedInBy = checkedInBy; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }

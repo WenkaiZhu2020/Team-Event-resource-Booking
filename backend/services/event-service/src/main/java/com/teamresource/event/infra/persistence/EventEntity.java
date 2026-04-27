@@ -45,6 +45,9 @@ public class EventEntity {
     @Column(name = "waitlist_projected_count", nullable = false)
     private int waitlistProjectedCount;
 
+    @Column(name = "checked_in_count", nullable = false)
+    private int checkedInCount;
+
     @Column(name = "registration_open_at")
     private OffsetDateTime registrationOpenAt;
 
@@ -88,6 +91,8 @@ public class EventEntity {
     public void setAttendeeProjectedCount(int attendeeProjectedCount) { this.attendeeProjectedCount = attendeeProjectedCount; }
     public int getWaitlistProjectedCount() { return waitlistProjectedCount; }
     public void setWaitlistProjectedCount(int waitlistProjectedCount) { this.waitlistProjectedCount = waitlistProjectedCount; }
+    public int getCheckedInCount() { return checkedInCount; }
+    public void setCheckedInCount(int checkedInCount) { this.checkedInCount = checkedInCount; }
     public OffsetDateTime getRegistrationOpenAt() { return registrationOpenAt; }
     public void setRegistrationOpenAt(OffsetDateTime registrationOpenAt) { this.registrationOpenAt = registrationOpenAt; }
     public OffsetDateTime getRegistrationCloseAt() { return registrationCloseAt; }

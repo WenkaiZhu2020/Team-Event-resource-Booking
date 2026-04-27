@@ -115,6 +115,39 @@ class EventRegistrationServiceTest {
         verify(eventRegistrationRepository, times(2)).save(any(EventRegistrationEntity.class));
     }
 
+    @Test
+    void checkInShouldMarkRegistrationAndIncrementProjection() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        UUID attendeeId = UUID.randomUUID();
+        UUID registrationId = UUID.randomUUID();
+        EventEntity event = publishedEvent(eventId, 10, 3, 1);
+        event.setOrganizerId(organizerId);
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        event.setStartAt(now.minusMinutes(30));
+        event.setEndAt(now.plusHours(2));
+
+        EventRegistrationEntity registration = registration(
+                eventId,
+                attendeeId,
+                EventRegistrationStatus.REGISTERED,
+                null
+        );
+        registration.setRegistrationId(registrationId);
+
+        when(eventRepository.findByIdForUpdate(eventId)).thenReturn(Optional.of(event));
+        when(eventRegistrationRepository.findById(registrationId)).thenReturn(Optional.of(registration));
+        when(eventRegistrationRepository.save(any(EventRegistrationEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(eventRepository.save(any(EventEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = eventRegistrationService.checkIn(eventId, registrationId, organizerId, false);
+
+        assertThat(response.checkedInAt()).isNotNull();
+        assertThat(response.checkedInBy()).isEqualTo(organizerId);
+        assertThat(event.getCheckedInCount()).isEqualTo(1);
+        assertThat(registration.getCheckedInAt()).isNotNull();
+    }
+
     private EventEntity publishedEvent(UUID eventId, int capacity, int attendeeProjectedCount, int waitlistProjectedCount) {
         EventEntity event = new EventEntity();
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
@@ -125,6 +158,7 @@ class EventRegistrationServiceTest {
         event.setCapacity(capacity);
         event.setAttendeeProjectedCount(attendeeProjectedCount);
         event.setWaitlistProjectedCount(waitlistProjectedCount);
+        event.setCheckedInCount(0);
         event.setStatus(EventStatus.PUBLISHED);
         event.setRegistrationOpenAt(now.minusDays(1));
         event.setRegistrationCloseAt(now.plusDays(1));
