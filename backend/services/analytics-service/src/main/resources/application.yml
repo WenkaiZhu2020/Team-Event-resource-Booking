@@ -1,0 +1,54 @@
+server:
+  port: ${SERVER_PORT:8088}
+
+spring:
+  application:
+    name: analytics-service
+  datasource:
+    url: ${ANALYTICS_DB_URL:jdbc:postgresql://localhost:5432/team_resource_mgmt}
+    username: ${ANALYTICS_DB_USERNAME:team_resource}
+    password: ${ANALYTICS_DB_PASSWORD:team_resource}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: analytics
+  flyway:
+    enabled: true
+    default-schema: analytics
+    schemas: analytics
+    locations: classpath:db/migration
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        default-requeue-rejected: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+app:
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:team-resource-auth}
+      secret-base64: ${JWT_SECRET_BASE64:VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}
+  analytics:
+    queue-name: ${ANALYTICS_QUEUE_NAME:analytics.booking.events}
+    dead-letter-queue-name: ${ANALYTICS_DLQ_NAME:analytics.booking.events.dlq}
+    popularity-refresh-ms: ${ANALYTICS_POPULARITY_REFRESH_MS:300000}
+    dashboard-thread-pool-size: ${ANALYTICS_DASHBOARD_THREAD_POOL_SIZE:4}

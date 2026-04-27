@@ -91,6 +91,15 @@ An internal platform for teams and organizations to manage events and reserve sh
   - Booking approval ownership, decision history, internal booking callback
   - PostgreSQL persistence + Flyway migration
   - Swagger UI: `http://localhost:8087/swagger-ui.html`
+- `analytics-service`
+  - `GET /api/v1/analytics/dashboard/overview`
+  - `GET /api/v1/analytics/dashboard/resources/popular`
+  - `POST /api/v1/analytics/admin/resource-popularity/refresh`
+  - RabbitMQ consumer for `booking.*` domain events
+  - Idempotent event consumption, booking fact aggregation, scheduled popularity refresh
+  - Parallel dashboard aggregation with `CompletableFuture`
+  - PostgreSQL persistence + Flyway migration
+  - Swagger UI: `http://localhost:8088/swagger-ui.html`
 - `api-gateway-service`
   - Routes `/api/v1/auth/**` to `auth-service`
   - Routes `/api/v1/users/**` and `/api/v1/preferences/**` to `user-service`
@@ -99,6 +108,7 @@ An internal platform for teams and organizations to manage events and reserve sh
   - Routes `/api/v1/bookings/**` to `booking-service`
   - Routes `/api/v1/notifications/**` to `notification-service`
   - Routes `/api/v1/workflows/**` to `workflow-service`
+  - Routes `/api/v1/analytics/**` to `analytics-service`
 
 ## Local Run
 1. Copy env file
@@ -116,3 +126,4 @@ Resource URL: `http://localhost:8084`
 Booking URL: `http://localhost:8085`
 Notification URL: `http://localhost:8086`
 Workflow URL: `http://localhost:8087`
+Analytics URL: `http://localhost:8088`
