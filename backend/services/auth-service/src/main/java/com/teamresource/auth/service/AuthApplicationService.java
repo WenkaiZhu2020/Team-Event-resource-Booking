@@ -51,8 +51,10 @@ public class AuthApplicationService {
         user.setId(UUID.randomUUID());
         user.setEmail(normalizedEmail);
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        user.setDisplayName(normalizedEmail);
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(Set.of(Role.USER));
+        user.setEmailVerified(false);
         user.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         user.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
 
@@ -81,6 +83,55 @@ public class AuthApplicationService {
         }
 
         return issueAuthResponse(user);
+    }
+
+    @Transactional
+    public AuthResponse loginOrRegisterGoogle(
+            String email,
+            String googleSubject,
+            String displayName,
+            String avatarUrl,
+            boolean emailVerified
+    ) {
+        String normalizedEmail = normalizeEmail(email);
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        AppUserEntity user = userRepository.findByGoogleSubject(googleSubject)
+                .or(() -> userRepository.findByEmailIgnoreCase(normalizedEmail))
+                .orElseGet(() -> {
+                    AppUserEntity entity = new AppUserEntity();
+                    entity.setId(UUID.randomUUID());
+                    entity.setEmail(normalizedEmail);
+                    entity.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
+                    entity.setRoles(Set.of(Role.USER));
+                    entity.setStatus(UserStatus.ACTIVE);
+                    entity.setCreatedAt(now);
+                    return entity;
+                });
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");
+        }
+
+        user.setEmail(normalizedEmail);
+        boolean newUser = user.getUpdatedAt() == null;
+        user.setDisplayName(displayName);
+        user.setAvatarUrl(avatarUrl);
+        user.setEmailVerified(emailVerified);
+        user.setGoogleSubject(googleSubject);
+        user.setGoogleLinkedAt(now);
+        user.setUpdatedAt(now);
+
+        AppUserEntity saved = userRepository.save(user);
+        if (newUser) {
+            userProvisioningClient.provisionUser(
+                    saved.getId(),
+                    saved.getEmail(),
+                    saved.getDisplayName() == null ? saved.getEmail() : saved.getDisplayName(),
+                    "UTC",
+                    saved.getRoles().stream().map(Role::name).collect(java.util.stream.Collectors.toSet())
+            );
+        }
+        return issueAuthResponse(saved);
     }
 
     @Transactional(readOnly = true)

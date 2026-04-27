@@ -31,6 +31,21 @@ public class AppUserEntity {
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
+    @Column(name = "display_name", length = 255)
+    private String displayName;
+
+    @Column(name = "avatar_url", length = 512)
+    private String avatarUrl;
+
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified;
+
+    @Column(name = "google_subject", length = 255)
+    private String googleSubject;
+
+    @Column(name = "google_linked_at")
+    private OffsetDateTime googleLinkedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 32)
     private UserStatus status;
@@ -72,6 +87,46 @@ public class AppUserEntity {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(boolean emailVerified) {
+        this.emailVerified = emailVerified;
+    }
+
+    public String getGoogleSubject() {
+        return googleSubject;
+    }
+
+    public void setGoogleSubject(String googleSubject) {
+        this.googleSubject = googleSubject;
+    }
+
+    public OffsetDateTime getGoogleLinkedAt() {
+        return googleLinkedAt;
+    }
+
+    public void setGoogleLinkedAt(OffsetDateTime googleLinkedAt) {
+        this.googleLinkedAt = googleLinkedAt;
     }
 
     public UserStatus getStatus() {

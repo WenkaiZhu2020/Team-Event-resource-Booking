@@ -8,7 +8,9 @@ import com.teamresource.auth.api.dto.UserResponse;
 import com.teamresource.auth.service.AuthApplicationService;
 import jakarta.validation.Valid;
 import java.security.Principal;
+import java.net.URI;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -35,6 +37,13 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.of(authApplicationService.login(request.email(), request.password()));
+    }
+
+    @GetMapping("/oauth2/google/authorize")
+    public ResponseEntity<Void> googleAuthorize() {
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create("/oauth2/authorization/google"))
+                .build();
     }
 
     @GetMapping("/me")

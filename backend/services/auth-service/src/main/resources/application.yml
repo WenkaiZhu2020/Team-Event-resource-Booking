@@ -21,6 +21,18 @@ spring:
     default-schema: auth
     schemas: auth
     locations: classpath:db/migration
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:dummy-google-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:dummy-google-client-secret}
+            scope:
+              - openid
+              - profile
+              - email
+            redirect-uri: ${OAUTH2_REDIRECT_BASE_URL:http://localhost:8080}/login/oauth2/code/{registrationId}
 
 management:
   endpoints:
@@ -45,3 +57,7 @@ app:
       enabled: ${USER_SERVICE_INTEGRATION_ENABLED:false}
       base-url: ${USER_SERVICE_BASE_URL:http://localhost:8082}
       api-key: ${USER_SERVICE_API_KEY:change-me}
+  oauth2:
+    google-enabled: ${GOOGLE_OAUTH_ENABLED:false}
+    success-redirect-url: ${OAUTH2_SUCCESS_REDIRECT_URL:http://localhost:5173/oauth2/callback}
+    failure-redirect-url: ${OAUTH2_FAILURE_REDIRECT_URL:http://localhost:5173/login}

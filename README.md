@@ -24,8 +24,10 @@ An internal platform for teams and organizations to manage events and reserve sh
 - `auth-service`
   - `POST /api/v1/auth/register`
   - `POST /api/v1/auth/login`
+  - `GET /api/v1/auth/oauth2/google/authorize`
   - `GET /api/v1/auth/me`
   - JWT issuing and validation
+  - Google OAuth2 browser login callback flow
   - PostgreSQL persistence + Flyway migration
   - Swagger UI: `http://localhost:8081/swagger-ui.html`
 - `user-service`
@@ -110,6 +112,7 @@ An internal platform for teams and organizations to manage events and reserve sh
   - Swagger UI: `http://localhost:8088/swagger-ui.html`
 - `api-gateway-service`
   - Routes `/api/v1/auth/**` to `auth-service`
+  - Routes `/oauth2/**` and `/login/oauth2/**` to `auth-service`
   - Routes `/api/v1/users/**` and `/api/v1/preferences/**` to `user-service`
   - Routes `/api/v1/events/**` to `event-service`
   - Routes `/api/v1/resources/**` to `resource-service`
