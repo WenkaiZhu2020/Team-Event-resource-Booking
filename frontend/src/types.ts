@@ -41,6 +41,9 @@ export interface EventItem {
   category: string;
   location: string;
   capacity: number;
+  attendeeProjectedCount: number;
+  waitlistProjectedCount: number;
+  checkedInCount: number;
   registrationOpenAt: string | null;
   registrationCloseAt: string | null;
   startAt: string;
@@ -60,6 +63,19 @@ export interface EventDraft {
   registrationCloseAt: string;
   startAt: string;
   endAt: string;
+}
+
+export interface EventRegistrationItem {
+  registrationId: string;
+  eventId: string;
+  userId: string;
+  status: string;
+  waitlistPosition: number | null;
+  registeredAt: string;
+  cancelledAt: string | null;
+  checkedInAt: string | null;
+  checkedInBy: string | null;
+  updatedAt: string;
 }
 
 export interface ResourceItem {
@@ -160,4 +176,29 @@ export interface ApprovalItem {
   createdAt: string;
   updatedAt: string;
   history: ApprovalHistoryItem[];
+}
+
+export interface DashboardOverview {
+  totalBookings: number;
+  approvedBookings: number;
+  pendingApprovals: number;
+  waitlistedBookings: number;
+  cancelledOrRejectedBookings: number;
+  uniqueResourcesUsed: number;
+  nextSevenDaysApprovedBookings: number;
+  totalApprovedReservedMinutes: number;
+}
+
+export interface ResourcePopularityItem {
+  resourceId: string;
+  resourceName: string;
+  resourceType: string;
+  totalBookings: number;
+  approvedBookings: number;
+  pendingBookings: number;
+  waitlistedBookings: number;
+  cancelledBookings: number;
+  totalReservedMinutes: number;
+  popularityScore: number;
+  lastRefreshedAt: string;
 }

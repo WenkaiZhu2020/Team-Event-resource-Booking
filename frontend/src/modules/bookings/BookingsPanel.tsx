@@ -1,10 +1,11 @@
 import type { FormEvent } from 'react';
 import { SectionPanel } from '../../components/SectionPanel';
-import type { BookingDraft, BookingItem, ResourceItem } from '../../types';
+import type { BookingDraft, BookingItem, EventItem, ResourceItem } from '../../types';
 
 interface BookingsPanelProps {
   bookings: BookingItem[];
   resources: ResourceItem[];
+  events: EventItem[];
   draft: BookingDraft;
   loading: boolean;
   onDraftChange: (draft: BookingDraft) => void;
@@ -14,7 +15,7 @@ interface BookingsPanelProps {
 }
 
 export function BookingsPanel(props: BookingsPanelProps) {
-  const { bookings, resources, draft, loading, onDraftChange, onSubmit, onCancel, onReload } = props;
+  const { bookings, resources, events, draft, loading, onDraftChange, onSubmit, onCancel, onReload } = props;
 
   return (
     <div className="stack-grid">
@@ -32,8 +33,15 @@ export function BookingsPanel(props: BookingsPanelProps) {
             </select>
           </label>
           <label>
-            Linked event id (optional)
-            <input value={draft.linkedEventId} onChange={(event) => onDraftChange({ ...draft, linkedEventId: event.target.value })} />
+            Linked event (optional)
+            <select value={draft.linkedEventId} onChange={(event) => onDraftChange({ ...draft, linkedEventId: event.target.value })}>
+              <option value="">No linked event</option>
+              {events.map((eventItem) => (
+                <option key={eventItem.eventId} value={eventItem.eventId}>
+                  {eventItem.title}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             Starts at

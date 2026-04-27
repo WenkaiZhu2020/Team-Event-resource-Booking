@@ -5,10 +5,12 @@ interface AuthPanelProps {
   email: string;
   password: string;
   loading: boolean;
+  googleEnabled: boolean;
   onModeChange: (mode: 'login' | 'register') => void;
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onGoogleLogin: () => void;
 }
 
 export function AuthPanel(props: AuthPanelProps) {
@@ -17,10 +19,12 @@ export function AuthPanel(props: AuthPanelProps) {
     email,
     password,
     loading,
+    googleEnabled,
     onModeChange,
     onEmailChange,
     onPasswordChange,
-    onSubmit
+    onSubmit,
+    onGoogleLogin
   } = props;
 
   return (
@@ -56,9 +60,20 @@ export function AuthPanel(props: AuthPanelProps) {
           Password
           <input type="password" value={password} onChange={(event) => onPasswordChange(event.target.value)} minLength={8} required />
         </label>
-        <button className="primary-button" type="submit" disabled={loading}>
-          {loading ? 'Working...' : authMode === 'login' ? 'Sign in' : 'Create account'}
-        </button>
+        <div className="button-row">
+          <button className="primary-button" type="submit" disabled={loading}>
+            {loading ? 'Working...' : authMode === 'login' ? 'Sign in' : 'Create account'}
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            disabled={loading || !googleEnabled}
+            onClick={onGoogleLogin}
+          >
+            Continue with Google
+          </button>
+        </div>
+        {!googleEnabled ? <p className="helper-copy">Google login is currently disabled in the local environment.</p> : null}
       </form>
     </section>
   );

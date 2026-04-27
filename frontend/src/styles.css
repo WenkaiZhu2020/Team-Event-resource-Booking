@@ -29,6 +29,33 @@ button {
   min-height: 100vh;
 }
 
+.auth-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.auth-column {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 980px);
+  grid-template-columns: minmax(260px, 360px) minmax(0, 520px);
+  align-items: start;
+}
+
+.auth-copy {
+  display: grid;
+  gap: 10px;
+  padding: 24px;
+}
+
+.auth-copy h1 {
+  margin: 0;
+  font-size: 44px;
+  line-height: 0.95;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
@@ -74,6 +101,9 @@ button {
 }
 
 .nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
   padding: 11px 12px;
   border: 0;
@@ -81,11 +111,25 @@ button {
   text-align: left;
   color: #bfcfc4;
   background: transparent;
+  text-decoration: none;
 }
 
 .nav-item.active {
   color: #102016;
   background: #bce3b6;
+  font-weight: 800;
+}
+
+.nav-item small {
+  display: inline-flex;
+  min-width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #102016;
+  background: rgba(188, 227, 182, 0.85);
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -129,6 +173,12 @@ button {
 
 .account-copy small {
   color: #526057;
+}
+
+.helper-copy {
+  margin: 0;
+  color: #5d6a62;
+  line-height: 1.5;
 }
 
 .notice {
@@ -349,12 +399,37 @@ textarea:focus {
   letter-spacing: 0.06em;
 }
 
+.metrics-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metric-card {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid #e4ebe7;
+  border-radius: 10px;
+  background: #fbfdfc;
+}
+
+.metric-card small {
+  color: #637067;
+  font-weight: 700;
+}
+
+.metric-card strong {
+  font-size: 28px;
+}
+
 .empty-state {
   margin: 0;
   color: #5d6a62;
 }
 
 @media (max-width: 960px) {
+  .auth-column,
   .app-shell {
     grid-template-columns: 1fr;
   }
@@ -376,7 +451,8 @@ textarea:focus {
   }
 
   .two-column,
-  .detail-grid {
+  .detail-grid,
+  .metrics-grid {
     grid-template-columns: 1fr;
   }
 }

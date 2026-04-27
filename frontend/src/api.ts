@@ -3,11 +3,14 @@ import type {
   AuthResponse,
   BookingDraft,
   BookingItem,
+  DashboardOverview,
   EventDraft,
   EventItem,
+  EventRegistrationItem,
   NotificationItem,
   NotificationPreference,
   ResourceItem,
+  ResourcePopularityItem,
   UnreadCount,
   UserProfile
 } from './types';
@@ -18,6 +21,18 @@ const USER_KEY = 'trms_user';
 
 interface ApiResponse<T> {
   data: T;
+}
+
+export class ApiError extends Error {
+  readonly status: number;
+  readonly details?: unknown;
+
+  constructor(message: string, status: number, details?: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.details = details;
+  }
 }
 
 export function readAccessToken(): string | null {
@@ -45,6 +60,10 @@ export function writeAuthSession(session: AuthResponse) {
 export function clearAuthSession() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+}
+
+export function googleAuthorizeUrl() {
+  return `${API_BASE_URL}/v1/auth/oauth2/google/authorize`;
 }
 
 export async function register(email: string, password: string) {
@@ -83,6 +102,14 @@ export async function updateNotificationPreferences(payload: NotificationPrefere
   });
 }
 
+export async function getDashboardOverview() {
+  return request<DashboardOverview>('/v1/analytics/dashboard/overview');
+}
+
+export async function getPopularResources() {
+  return request<ResourcePopularityItem[]>('/v1/analytics/dashboard/resources/popular');
+}
+
 export async function getEvents() {
   return request<EventItem[]>('/v1/events');
 }
@@ -113,6 +140,32 @@ export async function publishEvent(eventId: string) {
 
 export async function cancelEvent(eventId: string) {
   return request<EventItem>(`/v1/events/${eventId}/cancel`, {
+    method: 'POST'
+  });
+}
+
+export async function getMyEventRegistrations() {
+  return request<EventRegistrationItem[]>('/v1/events/registrations/me');
+}
+
+export async function getEventRegistrations(eventId: string) {
+  return request<EventRegistrationItem[]>(`/v1/events/${eventId}/registrations`);
+}
+
+export async function registerForEvent(eventId: string) {
+  return request<EventRegistrationItem>(`/v1/events/${eventId}/registrations`, {
+    method: 'POST'
+  });
+}
+
+export async function cancelEventRegistration(eventId: string) {
+  return request<EventRegistrationItem>(`/v1/events/${eventId}/registrations/cancel`, {
+    method: 'POST'
+  });
+}
+
+export async function checkInEventRegistration(eventId: string, registrationId: string) {
+  return request<EventRegistrationItem>(`/v1/events/${eventId}/registrations/${registrationId}/check-in`, {
     method: 'POST'
   });
 }
@@ -195,7 +248,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (!response.ok) {
     const message = payload?.message ?? `Request failed with status ${response.status}`;
-    throw new Error(message);
+    throw new ApiError(message, response.status, payload?.details);
   }
 
   if (payload && typeof payload === 'object' && 'data' in payload) {

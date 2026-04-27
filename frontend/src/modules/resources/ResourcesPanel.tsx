@@ -19,7 +19,11 @@ export function ResourcesPanel({ resources, onReload, onUseResource }: Resources
           <article className="list-card action-card" key={resource.resourceId}>
             <div>
               <strong>{resource.name}</strong>
-              <p>{resource.type} · {resource.location} · {resource.approvalMode}</p>
+              <p>{resource.type} · {resource.location}</p>
+              <p>
+                {resource.approvalMode} · Waitlist {resource.allowWaitlist ? 'enabled' : 'disabled'}
+                {resource.capacity ? ` · Capacity ${resource.capacity}` : ''}
+              </p>
             </div>
             <div className="button-row">
               <span className="status-pill">{resource.status}</span>
