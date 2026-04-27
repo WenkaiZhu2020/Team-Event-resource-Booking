@@ -129,6 +129,9 @@ public class ResourceController {
     }
 
     private boolean hasRole(Authentication authentication, String role) {
+        if (authentication == null || authentication.getAuthorities() == null) {
+            return false;
+        }
         return authentication.getAuthorities().stream().anyMatch(authority -> role.equals(authority.getAuthority()));
     }
 

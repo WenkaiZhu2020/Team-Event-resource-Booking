@@ -18,12 +18,13 @@ import org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAut
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.context.annotation.FilterType;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -31,7 +32,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(
         controllers = ResourceController.class,
-        excludeAutoConfiguration = {SecurityAutoConfiguration.class, SecurityFilterAutoConfiguration.class}
+        excludeAutoConfiguration = {SecurityAutoConfiguration.class, SecurityFilterAutoConfiguration.class},
+        excludeFilters = {
+                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.teamresource.resource.infra.security.JwtAuthenticationFilter.class)
+        }
 )
 @AutoConfigureMockMvc(addFilters = false)
 @Import(ResourceControllerTest.TestConfig.class)
@@ -79,10 +83,11 @@ class ResourceControllerTest {
     @Test
     void createShouldValidateAvailabilityRules() throws Exception {
         UUID managerId = UUID.randomUUID();
+        TestingAuthenticationToken authentication =
+                new TestingAuthenticationToken(managerId.toString(), null, "ROLE_RESOURCE_MANAGER");
 
         mockMvc.perform(post("/api/v1/resources")
-                        .principal(() -> managerId.toString())
-                        .with(authentication(new TestingAuthenticationToken(managerId.toString(), null, "ROLE_RESOURCE_MANAGER")))
+                        .principal(authentication)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(java.util.Map.of(
                                 "name", "Broken Resource",
@@ -105,6 +110,8 @@ class ResourceControllerTest {
     void deactivateShouldReturnUpdatedResource() throws Exception {
         UUID resourceId = UUID.randomUUID();
         UUID managerId = UUID.randomUUID();
+        TestingAuthenticationToken authentication =
+                new TestingAuthenticationToken(managerId.toString(), null, "ROLE_ADMIN");
         resourceService.deactivateResponse = new ResourceResponse(
                 resourceId,
                 managerId,
@@ -126,8 +133,7 @@ class ResourceControllerTest {
         );
 
         mockMvc.perform(post("/api/v1/resources/{resourceId}/deactivate", resourceId)
-                        .principal(() -> managerId.toString())
-                        .with(authentication(new TestingAuthenticationToken(managerId.toString(), null, "ROLE_ADMIN"))))
+                        .principal(authentication))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("INACTIVE"));
     }

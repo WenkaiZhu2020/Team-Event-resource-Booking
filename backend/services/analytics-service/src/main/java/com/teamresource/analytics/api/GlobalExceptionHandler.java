@@ -2,6 +2,7 @@ package com.teamresource.analytics.api;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -28,6 +29,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
         List<String> details = ex.getBindingResult().getFieldErrors().stream()
                 .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
+                .toList();
+        return ResponseEntity.badRequest().body(new ErrorResponse(
+                400,
+                "Bad Request",
+                "Validation failed",
+                details,
+                OffsetDateTime.now()
+        ));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
+        List<String> details = ex.getConstraintViolations().stream()
+                .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
                 .toList();
         return ResponseEntity.badRequest().body(new ErrorResponse(
                 400,
