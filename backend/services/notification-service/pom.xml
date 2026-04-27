@@ -10,7 +10,7 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>booking-service</artifactId>
+    <artifactId>notification-service</artifactId>
 
     <dependencies>
         <dependency>

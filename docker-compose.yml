@@ -128,6 +128,8 @@ services:
         condition: service_started
       event-service:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
     environment:
       SERVER_PORT: 8085
       BOOKING_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-team_resource_mgmt}
@@ -135,10 +137,39 @@ services:
       BOOKING_DB_PASSWORD: ${POSTGRES_PASSWORD:-team_resource}
       JWT_ISSUER: ${JWT_ISSUER:-team-resource-auth}
       JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
       RESOURCE_SERVICE_BASE_URL: http://resource-service:8084
       EVENT_SERVICE_BASE_URL: http://event-service:8083
     ports:
       - "8085:8085"
+
+  notification-service:
+    build:
+      context: ./backend
+      dockerfile: services/notification-service/Dockerfile
+    container_name: trms-notification
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8086
+      NOTIFICATION_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-team_resource_mgmt}
+      NOTIFICATION_DB_USERNAME: ${POSTGRES_USER:-team_resource}
+      NOTIFICATION_DB_PASSWORD: ${POSTGRES_PASSWORD:-team_resource}
+      JWT_ISSUER: ${JWT_ISSUER:-team-resource-auth}
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "8086:8086"
 
   api-gateway-service:
     build:
@@ -157,6 +188,8 @@ services:
         condition: service_started
       booking-service:
         condition: service_started
+      notification-service:
+        condition: service_started
     environment:
       SERVER_PORT: 8080
       AUTH_SERVICE_URL: http://auth-service:8081
@@ -164,6 +197,7 @@ services:
       EVENT_SERVICE_URL: http://event-service:8083
       RESOURCE_SERVICE_URL: http://resource-service:8084
       BOOKING_SERVICE_URL: http://booking-service:8085
+      NOTIFICATION_SERVICE_URL: http://notification-service:8086
     ports:
       - "8080:8080"
 

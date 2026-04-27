@@ -72,12 +72,22 @@ An internal platform for teams and organizations to manage events and reserve sh
   - Synchronous integration with `resource-service` and `event-service`
   - PostgreSQL persistence + Flyway migration
   - Swagger UI: `http://localhost:8085/swagger-ui.html`
+- `notification-service`
+  - `GET /api/v1/notifications/me`
+  - `GET /api/v1/notifications/me/unread-count`
+  - `POST /api/v1/notifications/{notificationId}/read`
+  - RabbitMQ consumer for `booking.*` domain events
+  - In-app and email-simulation channels
+  - Processed-event idempotency tracking
+  - PostgreSQL persistence + Flyway migration
+  - Swagger UI: `http://localhost:8086/swagger-ui.html`
 - `api-gateway-service`
   - Routes `/api/v1/auth/**` to `auth-service`
   - Routes `/api/v1/users/**` and `/api/v1/preferences/**` to `user-service`
   - Routes `/api/v1/events/**` to `event-service`
   - Routes `/api/v1/resources/**` to `resource-service`
   - Routes `/api/v1/bookings/**` to `booking-service`
+  - Routes `/api/v1/notifications/**` to `notification-service`
 
 ## Local Run
 1. Copy env file
@@ -93,3 +103,4 @@ User URL: `http://localhost:8082`
 Event URL: `http://localhost:8083`
 Resource URL: `http://localhost:8084`
 Booking URL: `http://localhost:8085`
+Notification URL: `http://localhost:8086`

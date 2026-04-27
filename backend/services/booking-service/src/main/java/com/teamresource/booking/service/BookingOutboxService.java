@@ -1,6 +1,7 @@
 package com.teamresource.booking.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teamresource.booking.api.dto.BookingResponse;
 import com.teamresource.booking.infra.persistence.OutboxMessageEntity;
@@ -33,11 +34,40 @@ public class BookingOutboxService {
         outboxMessageRepository.save(message);
     }
 
+    public DomainEventMessage toDomainEvent(OutboxMessageEntity entity) {
+        return new DomainEventMessage(
+                entity.getMessageId(),
+                entity.getAggregateType(),
+                entity.getAggregateId(),
+                entity.getEventType(),
+                toJsonNode(entity.getPayload()),
+                entity.getCreatedAt()
+        );
+    }
+
     private String toJson(BookingResponse response) {
         try {
             return objectMapper.writeValueAsString(response);
         } catch (JsonProcessingException ex) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "Failed to serialize outbox payload");
         }
+    }
+
+    private JsonNode toJsonNode(String payload) {
+        try {
+            return objectMapper.readTree(payload);
+        } catch (JsonProcessingException ex) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "Failed to deserialize outbox payload");
+        }
+    }
+
+    public record DomainEventMessage(
+            UUID messageId,
+            String aggregateType,
+            UUID aggregateId,
+            String eventType,
+            JsonNode payload,
+            OffsetDateTime occurredAt
+    ) {
     }
 }

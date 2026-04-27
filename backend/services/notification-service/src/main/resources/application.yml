@@ -1,13 +1,13 @@
 server:
-  port: ${SERVER_PORT:8085}
+  port: ${SERVER_PORT:8086}
 
 spring:
   application:
-    name: booking-service
+    name: notification-service
   datasource:
-    url: ${BOOKING_DB_URL:jdbc:postgresql://localhost:5432/team_resource_mgmt}
-    username: ${BOOKING_DB_USERNAME:team_resource}
-    password: ${BOOKING_DB_PASSWORD:team_resource}
+    url: ${NOTIFICATION_DB_URL:jdbc:postgresql://localhost:5432/team_resource_mgmt}
+    username: ${NOTIFICATION_DB_USERNAME:team_resource}
+    password: ${NOTIFICATION_DB_PASSWORD:team_resource}
     driver-class-name: org.postgresql.Driver
   jpa:
     open-in-view: false
@@ -15,11 +15,11 @@ spring:
       ddl-auto: validate
     properties:
       hibernate:
-        default_schema: bookings
+        default_schema: notifications
   flyway:
     enabled: true
-    default-schema: bookings
-    schemas: bookings
+    default-schema: notifications
+    schemas: notifications
     locations: classpath:db/migration
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
@@ -44,6 +44,3 @@ app:
     jwt:
       issuer: ${JWT_ISSUER:team-resource-auth}
       secret-base64: ${JWT_SECRET_BASE64:VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}
-  clients:
-    resource-service-base-url: ${RESOURCE_SERVICE_BASE_URL:http://localhost:8084}
-    event-service-base-url: ${EVENT_SERVICE_BASE_URL:http://localhost:8083}
