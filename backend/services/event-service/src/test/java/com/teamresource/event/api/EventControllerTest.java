@@ -2,8 +2,10 @@ package com.teamresource.event.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teamresource.event.api.dto.CreateEventRequest;
+import com.teamresource.event.api.dto.EventRegistrationResponse;
 import com.teamresource.event.api.dto.EventResponse;
 import com.teamresource.event.api.dto.UpdateEventRequest;
+import com.teamresource.event.service.EventRegistrationService;
 import com.teamresource.event.service.EventService;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -16,11 +18,12 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -28,7 +31,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(
         controllers = EventController.class,
-        excludeAutoConfiguration = {SecurityAutoConfiguration.class, SecurityFilterAutoConfiguration.class}
+        excludeAutoConfiguration = {SecurityAutoConfiguration.class, SecurityFilterAutoConfiguration.class},
+        excludeFilters = {
+                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.teamresource.event.infra.security.JwtAuthenticationFilter.class)
+        }
 )
 @AutoConfigureMockMvc(addFilters = false)
 @Import(EventControllerTest.TestConfig.class)
@@ -43,6 +49,9 @@ class EventControllerTest {
     @Autowired
     private StubEventService eventService;
 
+    @Autowired
+    private StubEventRegistrationService eventRegistrationService;
+
     @Test
     void publishedEventsShouldReturnCollection() throws Exception {
         UUID eventId = UUID.randomUUID();
@@ -55,8 +64,10 @@ class EventControllerTest {
                 "MEETING",
                 "Auditorium",
                 50,
-                null,
-                null,
+                12,
+                3,
+                OffsetDateTime.parse("2026-05-01T09:00:00Z"),
+                OffsetDateTime.parse("2026-05-30T23:00:00Z"),
                 OffsetDateTime.parse("2026-06-01T09:00:00Z"),
                 OffsetDateTime.parse("2026-06-01T10:00:00Z"),
                 "PUBLISHED",
@@ -67,7 +78,9 @@ class EventControllerTest {
         mockMvc.perform(get("/api/v1/events"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].eventId").value(eventId.toString()))
-                .andExpect(jsonPath("$.data[0].status").value("PUBLISHED"));
+                .andExpect(jsonPath("$.data[0].status").value("PUBLISHED"))
+                .andExpect(jsonPath("$.data[0].attendeeProjectedCount").value(12))
+                .andExpect(jsonPath("$.data[0].waitlistProjectedCount").value(3));
     }
 
     @Test
@@ -92,6 +105,8 @@ class EventControllerTest {
     void publishShouldReturnUpdatedEvent() throws Exception {
         UUID eventId = UUID.randomUUID();
         UUID organizerId = UUID.randomUUID();
+        TestingAuthenticationToken authentication =
+                new TestingAuthenticationToken(organizerId.toString(), null, "ROLE_ORGANIZER");
         eventService.publishResponse = new EventResponse(
                 eventId,
                 organizerId,
@@ -100,8 +115,10 @@ class EventControllerTest {
                 "MEETING",
                 "Auditorium",
                 50,
-                null,
-                null,
+                0,
+                0,
+                OffsetDateTime.parse("2026-05-01T09:00:00Z"),
+                OffsetDateTime.parse("2026-05-30T23:00:00Z"),
                 OffsetDateTime.parse("2026-06-01T09:00:00Z"),
                 OffsetDateTime.parse("2026-06-01T10:00:00Z"),
                 "PUBLISHED",
@@ -110,10 +127,31 @@ class EventControllerTest {
         );
 
         mockMvc.perform(post("/api/v1/events/{eventId}/publish", eventId)
-                        .principal(() -> organizerId.toString())
-                        .with(authentication(new TestingAuthenticationToken(organizerId.toString(), null, "ROLE_ORGANIZER"))))
+                        .principal(authentication))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("PUBLISHED"));
+    }
+
+    @Test
+    void registerShouldReturnRegistrationResponse() throws Exception {
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        eventRegistrationService.registrationResponse = new EventRegistrationResponse(
+                UUID.randomUUID(),
+                eventId,
+                userId,
+                "REGISTERED",
+                null,
+                OffsetDateTime.parse("2026-05-01T09:00:00Z"),
+                null,
+                OffsetDateTime.parse("2026-05-01T09:00:00Z")
+        );
+
+        mockMvc.perform(post("/api/v1/events/{eventId}/registrations", eventId)
+                        .principal(userId::toString))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.eventId").value(eventId.toString()))
+                .andExpect(jsonPath("$.data.status").value("REGISTERED"));
     }
 
     @TestConfiguration
@@ -122,6 +160,11 @@ class EventControllerTest {
         @Bean
         StubEventService eventService() {
             return new StubEventService();
+        }
+
+        @Bean
+        StubEventRegistrationService eventRegistrationService() {
+            return new StubEventRegistrationService();
         }
     }
 
@@ -152,6 +195,20 @@ class EventControllerTest {
         @Override
         public EventResponse update(UUID eventId, UUID currentUserId, boolean admin, UpdateEventRequest request) {
             return null;
+        }
+    }
+
+    static class StubEventRegistrationService extends EventRegistrationService {
+
+        private EventRegistrationResponse registrationResponse;
+
+        StubEventRegistrationService() {
+            super(null, null);
+        }
+
+        @Override
+        public EventRegistrationResponse register(UUID eventId, UUID userId) {
+            return registrationResponse;
         }
     }
 }

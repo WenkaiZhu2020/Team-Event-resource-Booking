@@ -39,6 +39,8 @@ public class EventService {
         entity.setCategory(parseCategory(request.category()));
         entity.setLocation(request.location().trim());
         entity.setCapacity(request.capacity());
+        entity.setAttendeeProjectedCount(0);
+        entity.setWaitlistProjectedCount(0);
         entity.setRegistrationOpenAt(request.registrationOpenAt());
         entity.setRegistrationCloseAt(request.registrationCloseAt());
         entity.setStartAt(request.startAt());
@@ -56,6 +58,9 @@ public class EventService {
         requireOwnerOrAdmin(entity, currentUserId, admin);
         if (entity.getStatus() == EventStatus.CANCELLED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Cancelled events cannot be updated");
+        }
+        if (request.capacity() < entity.getAttendeeProjectedCount()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Capacity cannot be less than projected attendees");
         }
         entity.setTitle(request.title().trim());
         entity.setDescription(blankToNull(request.description()));
@@ -151,6 +156,8 @@ public class EventService {
                 entity.getCategory().name(),
                 entity.getLocation(),
                 entity.getCapacity(),
+                entity.getAttendeeProjectedCount(),
+                entity.getWaitlistProjectedCount(),
                 entity.getRegistrationOpenAt(),
                 entity.getRegistrationCloseAt(),
                 entity.getStartAt(),

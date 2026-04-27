@@ -44,7 +44,12 @@ An internal platform for teams and organizations to manage events and reserve sh
   - `GET /api/v1/events/{eventId}`
   - `POST /api/v1/events/{eventId}/publish`
   - `POST /api/v1/events/{eventId}/cancel`
-  - Organizer ownership, draft/publish/cancel lifecycle
+  - `POST /api/v1/events/{eventId}/registrations`
+  - `POST /api/v1/events/{eventId}/registrations/cancel`
+  - `GET /api/v1/events/{eventId}/registrations/me`
+  - `GET /api/v1/events/registrations/me`
+  - `GET /api/v1/events/{eventId}/registrations`
+  - Organizer ownership, draft/publish/cancel lifecycle, event registration, waitlist promotion, attendee/waitlist projections
   - PostgreSQL persistence + Flyway migration
   - Swagger UI: `http://localhost:8083/swagger-ui.html`
 - `resource-service`

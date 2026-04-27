@@ -11,6 +11,8 @@ public record EventResponse(
         String category,
         String location,
         int capacity,
+        int attendeeProjectedCount,
+        int waitlistProjectedCount,
         OffsetDateTime registrationOpenAt,
         OffsetDateTime registrationCloseAt,
         OffsetDateTime startAt,

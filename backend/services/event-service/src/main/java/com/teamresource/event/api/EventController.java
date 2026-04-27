@@ -2,8 +2,10 @@ package com.teamresource.event.api;
 
 import com.teamresource.event.api.dto.ApiResponse;
 import com.teamresource.event.api.dto.CreateEventRequest;
+import com.teamresource.event.api.dto.EventRegistrationResponse;
 import com.teamresource.event.api.dto.EventResponse;
 import com.teamresource.event.api.dto.UpdateEventRequest;
+import com.teamresource.event.service.EventRegistrationService;
 import com.teamresource.event.service.EventService;
 import jakarta.validation.Valid;
 import java.security.Principal;
@@ -26,9 +28,11 @@ import org.springframework.web.server.ResponseStatusException;
 public class EventController {
 
     private final EventService eventService;
+    private final EventRegistrationService eventRegistrationService;
 
-    public EventController(EventService eventService) {
+    public EventController(EventService eventService, EventRegistrationService eventRegistrationService) {
         this.eventService = eventService;
+        this.eventRegistrationService = eventRegistrationService;
     }
 
     @PostMapping
@@ -72,6 +76,40 @@ public class EventController {
         return ApiResponse.of(eventService.cancel(eventId, parsePrincipal(principal), hasRole(authentication, "ROLE_ADMIN")));
     }
 
+    @PostMapping("/{eventId}/registrations")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<EventRegistrationResponse> register(@PathVariable UUID eventId, Principal principal) {
+        return ApiResponse.of(eventRegistrationService.register(eventId, parsePrincipal(principal)));
+    }
+
+    @PostMapping("/{eventId}/registrations/cancel")
+    public ApiResponse<EventRegistrationResponse> cancelRegistration(@PathVariable UUID eventId, Principal principal) {
+        return ApiResponse.of(eventRegistrationService.cancel(eventId, parsePrincipal(principal)));
+    }
+
+    @GetMapping("/{eventId}/registrations/me")
+    public ApiResponse<EventRegistrationResponse> myRegistration(@PathVariable UUID eventId, Principal principal) {
+        return ApiResponse.of(eventRegistrationService.myRegistration(eventId, parsePrincipal(principal)));
+    }
+
+    @GetMapping("/registrations/me")
+    public ApiResponse<List<EventRegistrationResponse>> myRegistrations(Principal principal) {
+        return ApiResponse.of(eventRegistrationService.myRegistrations(parsePrincipal(principal)));
+    }
+
+    @GetMapping("/{eventId}/registrations")
+    public ApiResponse<List<EventRegistrationResponse>> eventRegistrations(
+            @PathVariable UUID eventId,
+            Principal principal,
+            Authentication authentication
+    ) {
+        return ApiResponse.of(eventRegistrationService.eventRegistrations(
+                eventId,
+                parsePrincipal(principal),
+                hasRole(authentication, "ROLE_ADMIN")
+        ));
+    }
+
     private UUID parsePrincipal(Principal principal) {
         try {
             return UUID.fromString(principal.getName());
@@ -81,6 +119,9 @@ public class EventController {
     }
 
     private boolean hasRole(Authentication authentication, String role) {
+        if (authentication == null) {
+            return false;
+        }
         return authentication.getAuthorities().stream().anyMatch(authority -> role.equals(authority.getAuthority()));
     }
 }
