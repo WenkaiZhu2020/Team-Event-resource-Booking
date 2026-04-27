@@ -114,6 +114,9 @@ public class BookingController {
     }
 
     private boolean hasRole(Authentication authentication, String role) {
+        if (authentication == null) {
+            return false;
+        }
         return authentication.getAuthorities().stream().anyMatch(authority -> role.equals(authority.getAuthority()));
     }
 }
