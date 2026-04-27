@@ -1,0 +1,48 @@
+server:
+  port: ${SERVER_PORT:8087}
+
+spring:
+  application:
+    name: workflow-service
+  datasource:
+    url: ${WORKFLOW_DB_URL:jdbc:postgresql://localhost:5432/team_resource_mgmt}
+    username: ${WORKFLOW_DB_USERNAME:team_resource}
+    password: ${WORKFLOW_DB_PASSWORD:team_resource}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: workflows
+  flyway:
+    enabled: true
+    default-schema: workflows
+    schemas: workflows
+    locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+app:
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:team-resource-auth}
+      secret-base64: ${JWT_SECRET_BASE64:VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}
+  internal-api:
+    key-header-name: ${INTERNAL_API_KEY_HEADER:X-Internal-Api-Key}
+    key-value: ${WORKFLOW_SERVICE_API_KEY:change-me}
+  clients:
+    booking-service-base-url: ${BOOKING_SERVICE_BASE_URL:http://localhost:8085}
+    booking-service-api-key: ${BOOKING_SERVICE_API_KEY:change-me}
+    internal-api-header-name: ${INTERNAL_API_KEY_HEADER:X-Internal-Api-Key}
