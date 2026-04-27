@@ -31,6 +31,10 @@ spring:
           uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8086}
           predicates:
             - Path=/api/v1/notifications/**
+        - id: workflow-service
+          uri: ${WORKFLOW_SERVICE_URL:http://localhost:8087}
+          predicates:
+            - Path=/api/v1/workflows/**
 
 management:
   endpoints:

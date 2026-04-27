@@ -44,6 +44,12 @@ app:
     jwt:
       issuer: ${JWT_ISSUER:team-resource-auth}
       secret-base64: ${JWT_SECRET_BASE64:VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}
+  internal-api:
+    key-header-name: ${INTERNAL_API_KEY_HEADER:X-Internal-Api-Key}
+    key-value: ${BOOKING_SERVICE_API_KEY:change-me}
   clients:
     resource-service-base-url: ${RESOURCE_SERVICE_BASE_URL:http://localhost:8084}
     event-service-base-url: ${EVENT_SERVICE_BASE_URL:http://localhost:8083}
+    workflow-service-base-url: ${WORKFLOW_SERVICE_BASE_URL:http://localhost:8087}
+    workflow-service-api-key: ${WORKFLOW_SERVICE_API_KEY:change-me}
+    internal-api-header-name: ${INTERNAL_API_KEY_HEADER:X-Internal-Api-Key}

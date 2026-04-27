@@ -6,7 +6,6 @@ import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
-import org.springframework.amqp.core.TopicExchange;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,7 +13,7 @@ import org.springframework.web.client.RestClient;
 
 @Configuration
 @EnableRabbit
-@EnableConfigurationProperties({JwtProperties.class, ClientProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, InternalApiProperties.class, ClientProperties.class})
 public class BookingServiceConfiguration {
 
     public static final String BOOKING_EVENTS_EXCHANGE = "team-resource.events";
@@ -27,6 +26,11 @@ public class BookingServiceConfiguration {
     @Bean
     RestClient eventRestClient(ClientProperties properties) {
         return RestClient.builder().baseUrl(properties.eventServiceBaseUrl()).build();
+    }
+
+    @Bean
+    RestClient workflowRestClient(ClientProperties properties) {
+        return RestClient.builder().baseUrl(properties.workflowServiceBaseUrl()).build();
     }
 
     @Bean

@@ -17,9 +17,9 @@ An internal platform for teams and organizations to manage events and reserve sh
 ## Current Scope
 - `frontend`
   - Login and registration UI
-  - User profile view and update form
-  - Notification preference view and update form
+  - Profile and notification preference workspace
   - Event list and event creation workflow
+  - Resource catalog, booking form, notification inbox, approval inbox
   - JWT storage and API client integration
 - `auth-service`
   - `POST /api/v1/auth/register`
@@ -81,6 +81,16 @@ An internal platform for teams and organizations to manage events and reserve sh
   - Processed-event idempotency tracking
   - PostgreSQL persistence + Flyway migration
   - Swagger UI: `http://localhost:8086/swagger-ui.html`
+- `workflow-service`
+  - `POST /api/v1/internal/workflows/approvals`
+  - `GET /api/v1/workflows/approvals/pending`
+  - `GET /api/v1/workflows/approvals/requested`
+  - `GET /api/v1/workflows/approvals/{approvalId}`
+  - `POST /api/v1/workflows/approvals/{approvalId}/approve`
+  - `POST /api/v1/workflows/approvals/{approvalId}/reject`
+  - Booking approval ownership, decision history, internal booking callback
+  - PostgreSQL persistence + Flyway migration
+  - Swagger UI: `http://localhost:8087/swagger-ui.html`
 - `api-gateway-service`
   - Routes `/api/v1/auth/**` to `auth-service`
   - Routes `/api/v1/users/**` and `/api/v1/preferences/**` to `user-service`
@@ -88,6 +98,7 @@ An internal platform for teams and organizations to manage events and reserve sh
   - Routes `/api/v1/resources/**` to `resource-service`
   - Routes `/api/v1/bookings/**` to `booking-service`
   - Routes `/api/v1/notifications/**` to `notification-service`
+  - Routes `/api/v1/workflows/**` to `workflow-service`
 
 ## Local Run
 1. Copy env file
@@ -104,3 +115,4 @@ Event URL: `http://localhost:8083`
 Resource URL: `http://localhost:8084`
 Booking URL: `http://localhost:8085`
 Notification URL: `http://localhost:8086`
+Workflow URL: `http://localhost:8087`
