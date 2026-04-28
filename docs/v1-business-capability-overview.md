@@ -463,6 +463,6 @@ The largest opportunities for the next refactoring cycle are:
 - fuller auth token lifecycle management
 - richer event lifecycle modeling and outbox use
 - stronger gateway governance
-- richer role-profile modeling in user-service
+- richer role-profile modeling in user-service.
 
 
