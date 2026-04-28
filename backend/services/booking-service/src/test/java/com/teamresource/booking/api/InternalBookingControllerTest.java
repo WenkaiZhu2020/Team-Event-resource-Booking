@@ -2,7 +2,7 @@ package com.teamresource.booking.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teamresource.booking.api.dto.BookingResponse;
-import com.teamresource.booking.service.BookingService;
+import com.teamresource.booking.service.BookingFacade;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -41,12 +41,12 @@ class InternalBookingControllerTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private StubBookingService bookingService;
+    private StubBookingFacade bookingFacade;
 
     @Test
     void applyDecisionShouldReturnWorkflowAppliedBooking() throws Exception {
         UUID bookingId = UUID.randomUUID();
-        bookingService.response = bookingResponse();
+        bookingFacade.response = bookingResponse();
 
         mockMvc.perform(post("/api/v1/internal/bookings/{bookingId}/decision", bookingId)
                         .contentType("application/json")
@@ -76,17 +76,17 @@ class InternalBookingControllerTest {
     static class TestConfig {
 
         @Bean
-        StubBookingService bookingService() {
-            return new StubBookingService();
+        StubBookingFacade bookingFacade() {
+            return new StubBookingFacade();
         }
     }
 
-    static class StubBookingService extends BookingService {
+    static class StubBookingFacade extends BookingFacade {
 
         private BookingResponse response;
 
-        StubBookingService() {
-            super(null, null, null, null, null, null, null);
+        StubBookingFacade() {
+            super(null);
         }
 
         @Override

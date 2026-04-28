@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teamresource.booking.api.dto.BookingDecisionRequest;
 import com.teamresource.booking.api.dto.BookingResponse;
 import com.teamresource.booking.api.dto.CreateBookingRequest;
-import com.teamresource.booking.service.BookingService;
+import com.teamresource.booking.service.BookingFacade;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -46,12 +46,12 @@ class BookingControllerTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private StubBookingService bookingService;
+    private StubBookingFacade bookingFacade;
 
     @Test
     void createShouldReturnPayloadAndForwardIdempotencyKey() throws Exception {
         UUID userId = UUID.randomUUID();
-        bookingService.createResponse = bookingResponse();
+        bookingFacade.createResponse = bookingResponse();
 
         mockMvc.perform(post("/api/v1/bookings")
                         .principal(() -> userId.toString())
@@ -67,13 +67,13 @@ class BookingControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.status").value("PENDING_APPROVAL"));
 
-        org.assertj.core.api.Assertions.assertThat(bookingService.lastIdempotencyKey).isEqualTo("idem-123");
+        org.assertj.core.api.Assertions.assertThat(bookingFacade.lastIdempotencyKey).isEqualTo("idem-123");
     }
 
     @Test
     void myBookingsShouldReturnList() throws Exception {
         UUID userId = UUID.randomUUID();
-        bookingService.myBookingsResponse = List.of(bookingResponse());
+        bookingFacade.myBookingsResponse = List.of(bookingResponse());
 
         mockMvc.perform(get("/api/v1/bookings/me").principal(() -> userId.toString()))
                 .andExpect(status().isOk())
@@ -84,7 +84,7 @@ class BookingControllerTest {
     void approveShouldUseAdminRoleFromAuthentication() throws Exception {
         UUID bookingId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        bookingService.approvalResponse = bookingResponse();
+        bookingFacade.approvalResponse = bookingResponse();
         TestingAuthenticationToken authentication = new TestingAuthenticationToken(userId.toString(), null, "ROLE_ADMIN");
 
         mockMvc.perform(post("/api/v1/bookings/{bookingId}/approve", bookingId)
@@ -94,19 +94,19 @@ class BookingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("PENDING_APPROVAL"));
 
-        org.assertj.core.api.Assertions.assertThat(bookingService.lastApproveAdmin).isTrue();
+        org.assertj.core.api.Assertions.assertThat(bookingFacade.lastApproveAdmin).isTrue();
     }
 
     @TestConfiguration
     static class TestConfig {
 
         @Bean
-        StubBookingService bookingService() {
-            return new StubBookingService();
+        StubBookingFacade bookingFacade() {
+            return new StubBookingFacade();
         }
     }
 
-    static class StubBookingService extends BookingService {
+    static class StubBookingFacade extends BookingFacade {
 
         private BookingResponse createResponse;
         private List<BookingResponse> myBookingsResponse = List.of();
@@ -114,8 +114,8 @@ class BookingControllerTest {
         private String lastIdempotencyKey;
         private boolean lastApproveAdmin;
 
-        StubBookingService() {
-            super(null, null, null, null, null, null, null);
+        StubBookingFacade() {
+            super(null);
         }
 
         @Override

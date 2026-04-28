@@ -4,7 +4,7 @@ import com.teamresource.booking.api.dto.ApiResponse;
 import com.teamresource.booking.api.dto.BookingDecisionRequest;
 import com.teamresource.booking.api.dto.BookingResponse;
 import com.teamresource.booking.api.dto.CreateBookingRequest;
-import com.teamresource.booking.service.BookingService;
+import com.teamresource.booking.service.BookingFacade;
 import jakarta.validation.Valid;
 import java.security.Principal;
 import java.util.List;
@@ -26,10 +26,10 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/v1/bookings")
 public class BookingController {
 
-    private final BookingService bookingService;
+    private final BookingFacade bookingFacade;
 
-    public BookingController(BookingService bookingService) {
-        this.bookingService = bookingService;
+    public BookingController(BookingFacade bookingFacade) {
+        this.bookingFacade = bookingFacade;
     }
 
     @PostMapping
@@ -39,7 +39,7 @@ public class BookingController {
             @Valid @RequestBody CreateBookingRequest request,
             @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey
     ) {
-        return ApiResponse.of(bookingService.create(parsePrincipal(principal), request, idempotencyKey));
+        return ApiResponse.of(bookingFacade.create(parsePrincipal(principal), request, idempotencyKey));
     }
 
     @GetMapping("/me")
@@ -47,7 +47,7 @@ public class BookingController {
             Principal principal,
             @RequestParam(required = false) String status
     ) {
-        return ApiResponse.of(bookingService.myBookings(parsePrincipal(principal), status));
+        return ApiResponse.of(bookingFacade.myBookings(parsePrincipal(principal), status));
     }
 
     @GetMapping("/{bookingId}")
@@ -56,7 +56,7 @@ public class BookingController {
             Principal principal,
             Authentication authentication
     ) {
-        return ApiResponse.of(bookingService.byId(bookingId, parsePrincipal(principal), hasRole(authentication, "ROLE_ADMIN")));
+        return ApiResponse.of(bookingFacade.byId(bookingId, parsePrincipal(principal), hasRole(authentication, "ROLE_ADMIN")));
     }
 
     @PostMapping("/{bookingId}/cancel")
@@ -65,12 +65,12 @@ public class BookingController {
             Principal principal,
             Authentication authentication
     ) {
-        return ApiResponse.of(bookingService.cancel(bookingId, parsePrincipal(principal), hasRole(authentication, "ROLE_ADMIN")));
+        return ApiResponse.of(bookingFacade.cancel(bookingId, parsePrincipal(principal), hasRole(authentication, "ROLE_ADMIN")));
     }
 
     @GetMapping("/approvals/pending")
     public ApiResponse<List<BookingResponse>> pendingApprovals(Principal principal, Authentication authentication) {
-        return ApiResponse.of(bookingService.pendingApprovals(parsePrincipal(principal), hasRole(authentication, "ROLE_ADMIN")));
+        return ApiResponse.of(bookingFacade.pendingApprovals(parsePrincipal(principal), hasRole(authentication, "ROLE_ADMIN")));
     }
 
     @PostMapping("/{bookingId}/approve")
@@ -81,7 +81,7 @@ public class BookingController {
             @Valid @RequestBody(required = false) BookingDecisionRequest request
     ) {
         BookingDecisionRequest safeRequest = request == null ? new BookingDecisionRequest(null) : request;
-        return ApiResponse.of(bookingService.approve(
+        return ApiResponse.of(bookingFacade.approve(
                 bookingId,
                 parsePrincipal(principal),
                 hasRole(authentication, "ROLE_ADMIN"),
@@ -97,7 +97,7 @@ public class BookingController {
             @Valid @RequestBody(required = false) BookingDecisionRequest request
     ) {
         BookingDecisionRequest safeRequest = request == null ? new BookingDecisionRequest(null) : request;
-        return ApiResponse.of(bookingService.reject(
+        return ApiResponse.of(bookingFacade.reject(
                 bookingId,
                 parsePrincipal(principal),
                 hasRole(authentication, "ROLE_ADMIN"),

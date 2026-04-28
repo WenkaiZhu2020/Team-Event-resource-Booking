@@ -3,7 +3,7 @@ package com.teamresource.booking.api;
 import com.teamresource.booking.api.dto.ApiResponse;
 import com.teamresource.booking.api.dto.BookingResponse;
 import com.teamresource.booking.api.dto.InternalBookingDecisionRequest;
-import com.teamresource.booking.service.BookingService;
+import com.teamresource.booking.service.BookingFacade;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,10 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/internal/bookings")
 public class InternalBookingController {
 
-    private final BookingService bookingService;
+    private final BookingFacade bookingFacade;
 
-    public InternalBookingController(BookingService bookingService) {
-        this.bookingService = bookingService;
+    public InternalBookingController(BookingFacade bookingFacade) {
+        this.bookingFacade = bookingFacade;
     }
 
     @PostMapping("/{bookingId}/decision")
@@ -27,6 +27,6 @@ public class InternalBookingController {
             @PathVariable UUID bookingId,
             @Valid @RequestBody InternalBookingDecisionRequest request
     ) {
-        return ApiResponse.of(bookingService.applyWorkflowDecision(bookingId, request.decision(), request.note()));
+        return ApiResponse.of(bookingFacade.applyWorkflowDecision(bookingId, request.decision(), request.note()));
     }
 }
