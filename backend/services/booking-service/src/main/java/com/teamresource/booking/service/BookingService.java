@@ -42,6 +42,7 @@ public class BookingService {
     private final WorkflowClient workflowClient;
     private final BookingOutboxService bookingOutboxService;
     private final BookingTransitionService bookingTransitionService;
+    private final WaitlistPromotionService waitlistPromotionService;
 
     public BookingService(
             BookingRepository bookingRepository,
@@ -51,7 +52,8 @@ public class BookingService {
             EventClient eventClient,
             WorkflowClient workflowClient,
             BookingOutboxService bookingOutboxService,
-            BookingTransitionService bookingTransitionService
+            BookingTransitionService bookingTransitionService,
+            WaitlistPromotionService waitlistPromotionService
     ) {
         this.bookingRepository = bookingRepository;
         this.bookingLockRepository = bookingLockRepository;
@@ -61,6 +63,7 @@ public class BookingService {
         this.workflowClient = workflowClient;
         this.bookingOutboxService = bookingOutboxService;
         this.bookingTransitionService = bookingTransitionService;
+        this.waitlistPromotionService = waitlistPromotionService;
     }
 
     @Transactional
@@ -154,7 +157,7 @@ public class BookingService {
 
         BookingEntity saved = bookingTransitionService.cancel(entity);
         BookingResponse response = toResponse(saved);
-        promoteWaitlist(saved.getResourceId());
+        waitlistPromotionService.promote(saved.getResourceId(), OCCUPYING_STATUSES);
         return response;
     }
 
@@ -202,7 +205,7 @@ public class BookingService {
     private BookingResponse rejectEntity(BookingEntity entity, String note) {
         BookingEntity saved = bookingTransitionService.reject(entity, note);
         BookingResponse response = toResponse(saved);
-        promoteWaitlist(saved.getResourceId());
+        waitlistPromotionService.promote(saved.getResourceId(), OCCUPYING_STATUSES);
         return response;
     }
 
@@ -308,37 +311,6 @@ public class BookingService {
             return;
         }
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Booking access denied");
-    }
-
-    private void promoteWaitlist(UUID resourceId) {
-        List<BookingEntity> candidates = bookingRepository.findWaitlistedBookings(resourceId);
-        for (BookingEntity candidate : candidates) {
-            boolean stillBlocked = bookingRepository.findOverlappingBookings(
-                            candidate.getResourceId(),
-                            candidate.getStartAt(),
-                            candidate.getEndAt(),
-                            OCCUPYING_STATUSES)
-                    .stream()
-                    .anyMatch(other -> !other.getBookingId().equals(candidate.getBookingId()));
-            if (stillBlocked) {
-                continue;
-            }
-            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-            candidate.setWaitlistPosition(null);
-            if (candidate.getApprovalMode() == ApprovalMode.AUTO_APPROVE) {
-                candidate.setStatus(BookingStatus.APPROVED);
-            } else {
-                candidate.setStatus(BookingStatus.PENDING_APPROVAL);
-                candidate.setApprovalRequestedAt(now);
-            }
-            candidate.setUpdatedAt(now);
-            BookingEntity saved = bookingRepository.save(candidate);
-            BookingResponse response = toResponse(saved);
-            if (saved.getStatus() == BookingStatus.PENDING_APPROVAL) {
-                workflowClient.createBookingApproval(response);
-            }
-            bookingOutboxService.record("booking.waitlist.promoted", response);
-        }
     }
 
     private BookingEntity findBooking(UUID bookingId) {
