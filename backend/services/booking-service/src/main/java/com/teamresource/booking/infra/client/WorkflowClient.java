@@ -33,7 +33,10 @@ public class WorkflowClient {
                         booking.resourceId(),
                         buildTitle(booking),
                         "RESOURCE_BOOKING_APPROVAL",
-                        buildSummary(booking)
+                        buildSummary(booking),
+                        booking.startAt(),
+                        booking.endAt(),
+                        null
                 ))
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, (request, response) -> {
@@ -60,7 +63,10 @@ public class WorkflowClient {
             UUID resourceId,
             String title,
             String approvalType,
-            String summary
+            String summary,
+            OffsetDateTime startAt,
+            OffsetDateTime endAt,
+            java.util.List<UUID> additionalApproverIds
     ) {
     }
 }

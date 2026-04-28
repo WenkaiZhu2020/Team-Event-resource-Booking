@@ -100,6 +100,9 @@ services:
       JWT_ISSUER: ${JWT_ISSUER:-team-resource-auth}
       JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}
       EVENT_SERVICE_API_KEY: ${EVENT_SERVICE_API_KEY:-change-me}
+      WORKFLOW_SERVICE_BASE_URL: http://workflow-service:8087
+      WORKFLOW_SERVICE_API_KEY: ${WORKFLOW_SERVICE_API_KEY:-change-me}
+      EVENT_ADMIN_APPROVAL_CAPACITY_THRESHOLD: ${EVENT_ADMIN_APPROVAL_CAPACITY_THRESHOLD:-100}
     ports:
       - "8083:8083"
 
@@ -119,6 +122,7 @@ services:
       RESOURCE_DB_PASSWORD: ${POSTGRES_PASSWORD:-team_resource}
       JWT_ISSUER: ${JWT_ISSUER:-team-resource-auth}
       JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}
+      RESOURCE_SERVICE_API_KEY: ${RESOURCE_SERVICE_API_KEY:-change-me}
     ports:
       - "8084:8084"
 
@@ -198,6 +202,12 @@ services:
         condition: service_healthy
       booking-service:
         condition: service_started
+      event-service:
+        condition: service_started
+      resource-service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     environment:
       SERVER_PORT: 8087
       WORKFLOW_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-team_resource_mgmt}
@@ -205,9 +215,18 @@ services:
       WORKFLOW_DB_PASSWORD: ${POSTGRES_PASSWORD:-team_resource}
       JWT_ISSUER: ${JWT_ISSUER:-team-resource-auth}
       JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
       WORKFLOW_SERVICE_API_KEY: ${WORKFLOW_SERVICE_API_KEY:-change-me}
       BOOKING_SERVICE_BASE_URL: http://booking-service:8085
       BOOKING_SERVICE_API_KEY: ${BOOKING_SERVICE_API_KEY:-change-me}
+      EVENT_SERVICE_BASE_URL: http://event-service:8083
+      EVENT_SERVICE_API_KEY: ${EVENT_SERVICE_API_KEY:-change-me}
+      RESOURCE_SERVICE_BASE_URL: http://resource-service:8084
+      RESOURCE_SERVICE_API_KEY: ${RESOURCE_SERVICE_API_KEY:-change-me}
+      WORKFLOW_BOOKING_EVENTS_QUEUE: ${WORKFLOW_BOOKING_EVENTS_QUEUE:-workflow.booking.events}
     ports:
       - "8087:8087"
 
