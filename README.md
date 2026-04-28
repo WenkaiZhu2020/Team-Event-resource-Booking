@@ -127,7 +127,7 @@ An internal platform for teams and organizations to manage events and reserve sh
 2. Build backend jars
    - `mvn -f backend/pom.xml -DskipTests package`
 3. Start services
-   - `docker compose up -d --build`
+   - ``docker compose up -d --build``
 
 Gateway URL: `http://localhost:8080`
 Auth URL: `http://localhost:8081`
