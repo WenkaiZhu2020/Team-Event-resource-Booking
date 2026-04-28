@@ -57,6 +57,7 @@ class BookingServiceTest {
     private StubEventClient eventClient;
     private StubWorkflowClient workflowClient;
     private StubBookingOutboxService bookingOutboxService;
+    private BookingTransitionService bookingTransitionService;
     private BookingService bookingService;
 
     @BeforeEach
@@ -65,6 +66,11 @@ class BookingServiceTest {
         eventClient = new StubEventClient();
         workflowClient = new StubWorkflowClient();
         bookingOutboxService = new StubBookingOutboxService();
+        bookingTransitionService = new BookingTransitionService(
+                bookingRepository,
+                bookingLockRepository,
+                bookingOutboxService
+        );
         bookingService = new BookingService(
                 bookingRepository,
                 bookingLockRepository,
@@ -72,7 +78,8 @@ class BookingServiceTest {
                 resourceClient,
                 eventClient,
                 workflowClient,
-                bookingOutboxService
+                bookingOutboxService,
+                bookingTransitionService
         );
     }
 

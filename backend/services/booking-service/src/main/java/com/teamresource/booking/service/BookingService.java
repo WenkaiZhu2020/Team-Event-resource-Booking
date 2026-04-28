@@ -41,6 +41,7 @@ public class BookingService {
     private final EventClient eventClient;
     private final WorkflowClient workflowClient;
     private final BookingOutboxService bookingOutboxService;
+    private final BookingTransitionService bookingTransitionService;
 
     public BookingService(
             BookingRepository bookingRepository,
@@ -49,7 +50,8 @@ public class BookingService {
             ResourceClient resourceClient,
             EventClient eventClient,
             WorkflowClient workflowClient,
-            BookingOutboxService bookingOutboxService
+            BookingOutboxService bookingOutboxService,
+            BookingTransitionService bookingTransitionService
     ) {
         this.bookingRepository = bookingRepository;
         this.bookingLockRepository = bookingLockRepository;
@@ -58,6 +60,7 @@ public class BookingService {
         this.eventClient = eventClient;
         this.workflowClient = workflowClient;
         this.bookingOutboxService = bookingOutboxService;
+        this.bookingTransitionService = bookingTransitionService;
     }
 
     @Transactional
@@ -149,13 +152,8 @@ public class BookingService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Booking is already closed");
         }
 
-        acquireResourceLock(entity.getResourceId());
-        entity.setStatus(BookingStatus.CANCELLED);
-        entity.setCancelledAt(OffsetDateTime.now(ZoneOffset.UTC));
-        entity.setUpdatedAt(entity.getCancelledAt());
-        BookingEntity saved = bookingRepository.save(entity);
+        BookingEntity saved = bookingTransitionService.cancel(entity);
         BookingResponse response = toResponse(saved);
-        bookingOutboxService.record("booking.cancelled", response);
         promoteWaitlist(saved.getResourceId());
         return response;
     }
@@ -197,33 +195,13 @@ public class BookingService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only pending bookings can be approved");
         }
 
-        acquireResourceLock(entity.getResourceId());
-        ensureNoConflictsExcluding(entity);
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        entity.setStatus(BookingStatus.APPROVED);
-        entity.setDecidedAt(now);
-        entity.setDecisionNote(note);
-        entity.setUpdatedAt(now);
-        BookingEntity saved = bookingRepository.save(entity);
-        BookingResponse response = toResponse(saved);
-        bookingOutboxService.record("booking.approved", response);
-        return response;
+        BookingEntity saved = bookingTransitionService.approve(entity, note, OCCUPYING_STATUSES);
+        return toResponse(saved);
     }
 
     private BookingResponse rejectEntity(BookingEntity entity, String note) {
-        if (entity.getStatus() != BookingStatus.PENDING_APPROVAL) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only pending bookings can be rejected");
-        }
-
-        acquireResourceLock(entity.getResourceId());
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        entity.setStatus(BookingStatus.REJECTED);
-        entity.setDecidedAt(now);
-        entity.setDecisionNote(note);
-        entity.setUpdatedAt(now);
-        BookingEntity saved = bookingRepository.save(entity);
+        BookingEntity saved = bookingTransitionService.reject(entity, note);
         BookingResponse response = toResponse(saved);
-        bookingOutboxService.record("booking.rejected", response);
         promoteWaitlist(saved.getResourceId());
         return response;
     }
@@ -277,6 +255,14 @@ public class BookingService {
         }
     }
 
+    private int nextWaitlistPosition(UUID resourceId) {
+        return bookingRepository.findWaitlistedBookings(resourceId).stream()
+                .map(BookingEntity::getWaitlistPosition)
+                .filter(position -> position != null)
+                .max(Integer::compareTo)
+                .orElse(0) + 1;
+    }
+
     private void acquireResourceLock(UUID resourceId) {
         try {
             bookingLockRepository.lockByResourceId(resourceId).orElseGet(() -> {
@@ -291,14 +277,6 @@ public class BookingService {
             bookingLockRepository.lockByResourceId(resourceId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to acquire booking lock"));
         }
-    }
-
-    private int nextWaitlistPosition(UUID resourceId) {
-        return bookingRepository.findWaitlistedBookings(resourceId).stream()
-                .map(BookingEntity::getWaitlistPosition)
-                .filter(position -> position != null)
-                .max(Integer::compareTo)
-                .orElse(0) + 1;
     }
 
     private void storeIdempotencyRecord(BookingEntity entity, UUID userId, String idempotencyKey, OffsetDateTime now) {
@@ -330,19 +308,6 @@ public class BookingService {
             return;
         }
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Booking access denied");
-    }
-
-    private void ensureNoConflictsExcluding(BookingEntity entity) {
-        boolean conflict = bookingRepository.findOverlappingBookings(
-                        entity.getResourceId(),
-                        entity.getStartAt(),
-                        entity.getEndAt(),
-                        OCCUPYING_STATUSES)
-                .stream()
-                .anyMatch(other -> !other.getBookingId().equals(entity.getBookingId()));
-        if (conflict) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Booking can no longer be approved because the slot is occupied");
-        }
     }
 
     private void promoteWaitlist(UUID resourceId) {
