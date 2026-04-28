@@ -4,6 +4,8 @@ import com.teamresource.workflow.domain.ApprovalTargetType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public record CreateApprovalRequest(
@@ -15,6 +17,9 @@ public record CreateApprovalRequest(
         UUID resourceId,
         @NotBlank @Size(max = 200) String title,
         @Size(max = 64) String approvalType,
-        @Size(max = 1000) String summary
+        @Size(max = 1000) String summary,
+        OffsetDateTime startAt,
+        OffsetDateTime endAt,
+        List<UUID> additionalApproverIds
 ) {
 }

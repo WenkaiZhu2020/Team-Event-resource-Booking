@@ -1,5 +1,6 @@
 package com.teamresource.workflow.infra.persistence;
 
+import com.teamresource.workflow.domain.ApprovalScope;
 import com.teamresource.workflow.domain.ApprovalStatus;
 import com.teamresource.workflow.domain.ApprovalTargetType;
 import jakarta.persistence.Column;
@@ -40,6 +41,10 @@ public class ApprovalRequestEntity {
 
     @Column(name = "approver_id", nullable = false)
     private UUID approverId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_scope", nullable = false, length = 32)
+    private ApprovalScope approvalScope;
 
     @Column(name = "target_owner_id")
     private UUID targetOwnerId;
@@ -127,6 +132,14 @@ public class ApprovalRequestEntity {
 
     public void setApproverId(UUID approverId) {
         this.approverId = approverId;
+    }
+
+    public ApprovalScope getApprovalScope() {
+        return approvalScope;
+    }
+
+    public void setApprovalScope(ApprovalScope approvalScope) {
+        this.approvalScope = approvalScope;
     }
 
     public UUID getTargetOwnerId() {
@@ -223,5 +236,13 @@ public class ApprovalRequestEntity {
 
     public void setUpdatedAt(OffsetDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
     }
 }

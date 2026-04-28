@@ -4,7 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teamresource.workflow.api.dto.ApprovalResponse;
 import com.teamresource.workflow.api.dto.CreateApprovalRequest;
 import com.teamresource.workflow.domain.ApprovalTargetType;
-import com.teamresource.workflow.service.ApprovalService;
+import com.teamresource.workflow.service.ApprovalWorkflowFacade;
+import com.teamresource.workflow.service.command.CreateApprovalCommand;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -16,9 +17,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -44,11 +45,11 @@ class WorkflowInternalControllerTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private StubApprovalService approvalService;
+    private StubApprovalWorkflowFacade approvalWorkflowFacade;
 
     @Test
     void createShouldReturnCreatedApproval() throws Exception {
-        approvalService.createResponse = approvalResponse();
+        approvalWorkflowFacade.createResponse = approvalResponse();
 
         mockMvc.perform(post("/api/v1/internal/workflows/approvals")
                         .contentType("application/json")
@@ -61,7 +62,10 @@ class WorkflowInternalControllerTest {
                                 UUID.randomUUID(),
                                 "Booking approval",
                                 "RESOURCE_BOOKING_APPROVAL",
-                                "Needs review"
+                                "Needs review",
+                                null,
+                                null,
+                                null
                         ))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.status").value("PENDING"));
@@ -86,21 +90,23 @@ class WorkflowInternalControllerTest {
     static class TestConfig {
 
         @Bean
-        StubApprovalService approvalService() {
-            return new StubApprovalService();
+        StubApprovalWorkflowFacade approvalWorkflowFacade() {
+            return new StubApprovalWorkflowFacade();
         }
     }
 
-    static class StubApprovalService extends ApprovalService {
+    static class StubApprovalWorkflowFacade extends ApprovalWorkflowFacade {
 
         private ApprovalResponse createResponse;
+        private CreateApprovalCommand lastCreateCommand;
 
-        StubApprovalService() {
-            super(null, null, null, null, null);
+        StubApprovalWorkflowFacade() {
+            super(null, null, null, null);
         }
 
         @Override
-        public ApprovalResponse create(CreateApprovalRequest request) {
+        public ApprovalResponse create(CreateApprovalCommand command) {
+            this.lastCreateCommand = command;
             return createResponse;
         }
     }
@@ -119,12 +125,14 @@ class WorkflowInternalControllerTest {
                 "Needs review",
                 1,
                 1,
+                "ASSIGNED_USER",
                 "PENDING",
                 OffsetDateTime.parse("2026-05-01T10:00:00Z"),
                 null,
                 null,
                 OffsetDateTime.parse("2026-05-01T10:00:00Z"),
                 OffsetDateTime.parse("2026-05-01T10:00:00Z"),
+                List.of(),
                 List.of()
         );
     }

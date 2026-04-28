@@ -2,8 +2,8 @@ package com.teamresource.workflow.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teamresource.workflow.api.dto.ApprovalResponse;
-import com.teamresource.workflow.service.ApprovalDecisionCommand;
-import com.teamresource.workflow.service.ApprovalService;
+import com.teamresource.workflow.service.ApprovalWorkflowFacade;
+import com.teamresource.workflow.service.command.ApproveApprovalCommand;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -15,9 +15,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -45,12 +45,12 @@ class WorkflowControllerTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private StubApprovalService approvalService;
+    private StubApprovalWorkflowFacade approvalWorkflowFacade;
 
     @Test
     void pendingShouldReturnPayload() throws Exception {
         UUID userId = UUID.randomUUID();
-        approvalService.pendingResponse = List.of(approvalResponse("PENDING"));
+        approvalWorkflowFacade.pendingResponse = List.of(approvalResponse("PENDING"));
         TestingAuthenticationToken authentication = new TestingAuthenticationToken(userId.toString(), null, "ROLE_USER");
 
         mockMvc.perform(get("/api/v1/workflows/approvals/pending").principal(authentication))
@@ -62,7 +62,7 @@ class WorkflowControllerTest {
     void approveShouldDetectAdminRole() throws Exception {
         UUID approvalId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        approvalService.approveResponse = approvalResponse("APPROVED");
+        approvalWorkflowFacade.approveResponse = approvalResponse("APPROVED");
         TestingAuthenticationToken authentication = new TestingAuthenticationToken(userId.toString(), null, "ROLE_ADMIN");
 
         mockMvc.perform(post("/api/v1/workflows/approvals/{approvalId}/approve", approvalId)
@@ -72,26 +72,26 @@ class WorkflowControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("APPROVED"));
 
-        org.assertj.core.api.Assertions.assertThat(approvalService.lastApproveCommand.admin()).isTrue();
+        org.assertj.core.api.Assertions.assertThat(approvalWorkflowFacade.lastApproveCommand.admin()).isTrue();
     }
 
     @TestConfiguration
     static class TestConfig {
 
         @Bean
-        StubApprovalService approvalService() {
-            return new StubApprovalService();
+        StubApprovalWorkflowFacade approvalWorkflowFacade() {
+            return new StubApprovalWorkflowFacade();
         }
     }
 
-    static class StubApprovalService extends ApprovalService {
+    static class StubApprovalWorkflowFacade extends ApprovalWorkflowFacade {
 
         private List<ApprovalResponse> pendingResponse = List.of();
         private ApprovalResponse approveResponse;
-        private ApprovalDecisionCommand lastApproveCommand;
+        private ApproveApprovalCommand lastApproveCommand;
 
-        StubApprovalService() {
-            super(null, null, null, null, null);
+        StubApprovalWorkflowFacade() {
+            super(null, null, null, null);
         }
 
         @Override
@@ -100,7 +100,7 @@ class WorkflowControllerTest {
         }
 
         @Override
-        public ApprovalResponse approve(ApprovalDecisionCommand command) {
+        public ApprovalResponse approve(ApproveApprovalCommand command) {
             this.lastApproveCommand = command;
             return approveResponse;
         }
@@ -120,12 +120,14 @@ class WorkflowControllerTest {
                 "Needs review",
                 1,
                 1,
+                "ASSIGNED_USER",
                 status,
                 OffsetDateTime.parse("2026-05-01T10:00:00Z"),
                 null,
                 null,
                 OffsetDateTime.parse("2026-05-01T10:00:00Z"),
                 OffsetDateTime.parse("2026-05-01T10:00:00Z"),
+                List.of(),
                 List.of()
         );
     }

@@ -3,7 +3,8 @@ package com.teamresource.workflow.api;
 import com.teamresource.workflow.api.dto.ApiResponse;
 import com.teamresource.workflow.api.dto.ApprovalResponse;
 import com.teamresource.workflow.api.dto.CreateApprovalRequest;
-import com.teamresource.workflow.service.ApprovalService;
+import com.teamresource.workflow.service.ApprovalWorkflowFacade;
+import com.teamresource.workflow.service.command.CreateApprovalCommand;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,15 +17,28 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/internal/workflows/approvals")
 public class WorkflowInternalController {
 
-    private final ApprovalService approvalService;
+    private final ApprovalWorkflowFacade approvalWorkflowFacade;
 
-    public WorkflowInternalController(ApprovalService approvalService) {
-        this.approvalService = approvalService;
+    public WorkflowInternalController(ApprovalWorkflowFacade approvalWorkflowFacade) {
+        this.approvalWorkflowFacade = approvalWorkflowFacade;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<ApprovalResponse> create(@Valid @RequestBody CreateApprovalRequest request) {
-        return ApiResponse.of(approvalService.create(request));
+        return ApiResponse.of(approvalWorkflowFacade.create(new CreateApprovalCommand(
+                request.targetType(),
+                request.targetId(),
+                request.requesterId(),
+                request.approverId(),
+                request.targetOwnerId(),
+                request.resourceId(),
+                request.title(),
+                request.approvalType(),
+                request.summary(),
+                request.startAt(),
+                request.endAt(),
+                request.additionalApproverIds()
+        )));
     }
 }

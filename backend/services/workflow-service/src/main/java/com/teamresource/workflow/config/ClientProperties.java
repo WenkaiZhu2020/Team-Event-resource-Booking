@@ -6,6 +6,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record ClientProperties(
         String bookingServiceBaseUrl,
         String bookingServiceApiKey,
+        String eventServiceBaseUrl,
+        String eventServiceApiKey,
+        String resourceServiceBaseUrl,
+        String resourceServiceApiKey,
         String internalApiHeaderName
 ) {
 }

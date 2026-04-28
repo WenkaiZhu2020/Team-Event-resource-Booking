@@ -3,8 +3,9 @@ package com.teamresource.workflow.api;
 import com.teamresource.workflow.api.dto.ApiResponse;
 import com.teamresource.workflow.api.dto.ApprovalDecisionRequest;
 import com.teamresource.workflow.api.dto.ApprovalResponse;
-import com.teamresource.workflow.service.ApprovalDecisionCommand;
-import com.teamresource.workflow.service.ApprovalService;
+import com.teamresource.workflow.service.ApprovalWorkflowFacade;
+import com.teamresource.workflow.service.command.ApproveApprovalCommand;
+import com.teamresource.workflow.service.command.RejectApprovalCommand;
 import jakarta.validation.Valid;
 import java.security.Principal;
 import java.util.List;
@@ -24,25 +25,25 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/v1/workflows/approvals")
 public class WorkflowController {
 
-    private final ApprovalService approvalService;
+    private final ApprovalWorkflowFacade approvalWorkflowFacade;
 
-    public WorkflowController(ApprovalService approvalService) {
-        this.approvalService = approvalService;
+    public WorkflowController(ApprovalWorkflowFacade approvalWorkflowFacade) {
+        this.approvalWorkflowFacade = approvalWorkflowFacade;
     }
 
     @GetMapping("/pending")
     public ApiResponse<List<ApprovalResponse>> pending(Principal principal, Authentication authentication) {
-        return ApiResponse.of(approvalService.pending(parsePrincipal(principal), hasRole(authentication, "ROLE_ADMIN")));
+        return ApiResponse.of(approvalWorkflowFacade.pending(parsePrincipal(principal), hasRole(authentication, "ROLE_ADMIN")));
     }
 
     @GetMapping("/requested")
     public ApiResponse<List<ApprovalResponse>> requested(Principal principal) {
-        return ApiResponse.of(approvalService.requested(parsePrincipal(principal)));
+        return ApiResponse.of(approvalWorkflowFacade.requested(parsePrincipal(principal)));
     }
 
     @GetMapping("/{approvalId}")
     public ApiResponse<ApprovalResponse> byId(@PathVariable UUID approvalId, Principal principal, Authentication authentication) {
-        return ApiResponse.of(approvalService.byId(approvalId, parsePrincipal(principal), hasRole(authentication, "ROLE_ADMIN")));
+        return ApiResponse.of(approvalWorkflowFacade.byId(approvalId, parsePrincipal(principal), hasRole(authentication, "ROLE_ADMIN")));
     }
 
     @PostMapping("/{approvalId}/approve")
@@ -54,7 +55,7 @@ public class WorkflowController {
             @Valid @RequestBody(required = false) ApprovalDecisionRequest request
     ) {
         ApprovalDecisionRequest safeRequest = request == null ? new ApprovalDecisionRequest(null) : request;
-        return ApiResponse.of(approvalService.approve(new ApprovalDecisionCommand(
+        return ApiResponse.of(approvalWorkflowFacade.approve(new ApproveApprovalCommand(
                 approvalId,
                 parsePrincipal(principal),
                 hasRole(authentication, "ROLE_ADMIN"),
@@ -70,7 +71,7 @@ public class WorkflowController {
             @Valid @RequestBody(required = false) ApprovalDecisionRequest request
     ) {
         ApprovalDecisionRequest safeRequest = request == null ? new ApprovalDecisionRequest(null) : request;
-        return ApiResponse.of(approvalService.reject(new ApprovalDecisionCommand(
+        return ApiResponse.of(approvalWorkflowFacade.reject(new RejectApprovalCommand(
                 approvalId,
                 parsePrincipal(principal),
                 hasRole(authentication, "ROLE_ADMIN"),

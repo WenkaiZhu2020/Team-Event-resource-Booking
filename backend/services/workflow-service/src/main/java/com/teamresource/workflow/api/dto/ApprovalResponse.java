@@ -17,12 +17,14 @@ public record ApprovalResponse(
         String summary,
         int currentStep,
         int totalSteps,
+        String approvalScope,
         String status,
         OffsetDateTime submittedAt,
         OffsetDateTime decidedAt,
         String decisionNote,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
+        List<ApprovalStepResponse> steps,
         List<ApprovalHistoryResponse> history
 ) {
 }

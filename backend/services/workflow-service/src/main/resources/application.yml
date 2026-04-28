@@ -21,6 +21,11 @@ spring:
     default-schema: workflows
     schemas: workflows
     locations: classpath:db/migration
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
 
 management:
   endpoints:
@@ -45,4 +50,13 @@ app:
   clients:
     booking-service-base-url: ${BOOKING_SERVICE_BASE_URL:http://localhost:8085}
     booking-service-api-key: ${BOOKING_SERVICE_API_KEY:change-me}
+    event-service-base-url: ${EVENT_SERVICE_BASE_URL:http://localhost:8083}
+    event-service-api-key: ${EVENT_SERVICE_API_KEY:change-me}
+    resource-service-base-url: ${RESOURCE_SERVICE_BASE_URL:http://localhost:8084}
+    resource-service-api-key: ${RESOURCE_SERVICE_API_KEY:change-me}
     internal-api-header-name: ${INTERNAL_API_KEY_HEADER:X-Internal-Api-Key}
+  outbox:
+    publish-delay-ms: ${WORKFLOW_OUTBOX_PUBLISH_DELAY_MS:5000}
+  messaging:
+    consumers:
+      booking-events-queue: ${WORKFLOW_BOOKING_EVENTS_QUEUE:workflow.booking.events}
