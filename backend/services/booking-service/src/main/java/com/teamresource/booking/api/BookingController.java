@@ -5,6 +5,10 @@ import com.teamresource.booking.api.dto.BookingDecisionRequest;
 import com.teamresource.booking.api.dto.BookingResponse;
 import com.teamresource.booking.api.dto.CreateBookingRequest;
 import com.teamresource.booking.service.BookingFacade;
+import com.teamresource.booking.service.command.ApproveBookingCommand;
+import com.teamresource.booking.service.command.CancelBookingCommand;
+import com.teamresource.booking.service.command.CreateBookingCommand;
+import com.teamresource.booking.service.command.RejectBookingCommand;
 import jakarta.validation.Valid;
 import java.security.Principal;
 import java.util.List;
@@ -39,7 +43,11 @@ public class BookingController {
             @Valid @RequestBody CreateBookingRequest request,
             @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey
     ) {
-        return ApiResponse.of(bookingFacade.create(parsePrincipal(principal), request, idempotencyKey));
+        return ApiResponse.of(bookingFacade.create(new CreateBookingCommand(
+                parsePrincipal(principal),
+                request,
+                idempotencyKey
+        )));
     }
 
     @GetMapping("/me")
@@ -65,7 +73,11 @@ public class BookingController {
             Principal principal,
             Authentication authentication
     ) {
-        return ApiResponse.of(bookingFacade.cancel(bookingId, parsePrincipal(principal), hasRole(authentication, "ROLE_ADMIN")));
+        return ApiResponse.of(bookingFacade.cancel(new CancelBookingCommand(
+                bookingId,
+                parsePrincipal(principal),
+                hasRole(authentication, "ROLE_ADMIN")
+        )));
     }
 
     @GetMapping("/approvals/pending")
@@ -81,12 +93,12 @@ public class BookingController {
             @Valid @RequestBody(required = false) BookingDecisionRequest request
     ) {
         BookingDecisionRequest safeRequest = request == null ? new BookingDecisionRequest(null) : request;
-        return ApiResponse.of(bookingFacade.approve(
+        return ApiResponse.of(bookingFacade.approve(new ApproveBookingCommand(
                 bookingId,
                 parsePrincipal(principal),
                 hasRole(authentication, "ROLE_ADMIN"),
                 safeRequest
-        ));
+        )));
     }
 
     @PostMapping("/{bookingId}/reject")
@@ -97,12 +109,12 @@ public class BookingController {
             @Valid @RequestBody(required = false) BookingDecisionRequest request
     ) {
         BookingDecisionRequest safeRequest = request == null ? new BookingDecisionRequest(null) : request;
-        return ApiResponse.of(bookingFacade.reject(
+        return ApiResponse.of(bookingFacade.reject(new RejectBookingCommand(
                 bookingId,
                 parsePrincipal(principal),
                 hasRole(authentication, "ROLE_ADMIN"),
                 safeRequest
-        ));
+        )));
     }
 
     private UUID parsePrincipal(Principal principal) {

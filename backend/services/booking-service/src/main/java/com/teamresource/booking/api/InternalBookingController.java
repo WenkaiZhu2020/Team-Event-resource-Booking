@@ -4,6 +4,7 @@ import com.teamresource.booking.api.dto.ApiResponse;
 import com.teamresource.booking.api.dto.BookingResponse;
 import com.teamresource.booking.api.dto.InternalBookingDecisionRequest;
 import com.teamresource.booking.service.BookingFacade;
+import com.teamresource.booking.service.command.ApplyWorkflowDecisionCommand;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,6 +28,10 @@ public class InternalBookingController {
             @PathVariable UUID bookingId,
             @Valid @RequestBody InternalBookingDecisionRequest request
     ) {
-        return ApiResponse.of(bookingFacade.applyWorkflowDecision(bookingId, request.decision(), request.note()));
+        return ApiResponse.of(bookingFacade.applyWorkflowDecision(new ApplyWorkflowDecisionCommand(
+                bookingId,
+                request.decision(),
+                request.note()
+        )));
     }
 }

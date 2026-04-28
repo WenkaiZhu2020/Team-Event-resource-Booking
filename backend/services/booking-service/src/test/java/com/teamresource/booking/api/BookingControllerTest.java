@@ -5,6 +5,10 @@ import com.teamresource.booking.api.dto.BookingDecisionRequest;
 import com.teamresource.booking.api.dto.BookingResponse;
 import com.teamresource.booking.api.dto.CreateBookingRequest;
 import com.teamresource.booking.service.BookingFacade;
+import com.teamresource.booking.service.command.ApproveBookingCommand;
+import com.teamresource.booking.service.command.CancelBookingCommand;
+import com.teamresource.booking.service.command.CreateBookingCommand;
+import com.teamresource.booking.service.command.RejectBookingCommand;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -113,14 +117,15 @@ class BookingControllerTest {
         private BookingResponse approvalResponse;
         private String lastIdempotencyKey;
         private boolean lastApproveAdmin;
+        private UUID lastCancelledBookingId;
 
         StubBookingFacade() {
             super(null);
         }
 
         @Override
-        public BookingResponse create(UUID userId, CreateBookingRequest request, String idempotencyKey) {
-            this.lastIdempotencyKey = idempotencyKey;
+        public BookingResponse create(CreateBookingCommand command) {
+            this.lastIdempotencyKey = command.idempotencyKey();
             return createResponse;
         }
 
@@ -130,8 +135,19 @@ class BookingControllerTest {
         }
 
         @Override
-        public BookingResponse approve(UUID bookingId, UUID currentUserId, boolean admin, BookingDecisionRequest request) {
-            this.lastApproveAdmin = admin;
+        public BookingResponse cancel(CancelBookingCommand command) {
+            this.lastCancelledBookingId = command.bookingId();
+            return createResponse;
+        }
+
+        @Override
+        public BookingResponse approve(ApproveBookingCommand command) {
+            this.lastApproveAdmin = command.admin();
+            return approvalResponse;
+        }
+
+        @Override
+        public BookingResponse reject(RejectBookingCommand command) {
             return approvalResponse;
         }
     }

@@ -3,6 +3,7 @@ package com.teamresource.booking.api;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teamresource.booking.api.dto.BookingResponse;
 import com.teamresource.booking.service.BookingFacade;
+import com.teamresource.booking.service.command.ApplyWorkflowDecisionCommand;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -90,7 +91,7 @@ class InternalBookingControllerTest {
         }
 
         @Override
-        public BookingResponse applyWorkflowDecision(UUID bookingId, String decision, String note) {
+        public BookingResponse applyWorkflowDecision(ApplyWorkflowDecisionCommand command) {
             return response;
         }
     }
