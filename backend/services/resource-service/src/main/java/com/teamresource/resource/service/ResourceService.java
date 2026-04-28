@@ -4,6 +4,7 @@ import com.teamresource.resource.api.dto.AvailabilityRuleRequest;
 import com.teamresource.resource.api.dto.AvailabilityRuleResponse;
 import com.teamresource.resource.api.dto.MaintenanceSlotRequest;
 import com.teamresource.resource.api.dto.MaintenanceSlotResponse;
+import com.teamresource.resource.api.dto.ResourceApprovalPolicyResponse;
 import com.teamresource.resource.api.dto.ResourceResponse;
 import com.teamresource.resource.api.dto.UpsertResourceRequest;
 import com.teamresource.resource.domain.ApprovalMode;
@@ -96,6 +97,21 @@ public class ResourceService {
     @Transactional(readOnly = true)
     public ResourceResponse byId(UUID resourceId) {
         return toResponse(findResource(resourceId));
+    }
+
+    @Transactional(readOnly = true)
+    public ResourceApprovalPolicyResponse approvalPolicy(UUID resourceId) {
+        ResourceEntity entity = findResource(resourceId);
+        boolean requiresApproval = approvalPolicyStrategyFactory.get(entity.getApprovalMode()).requiresApproval();
+        return new ResourceApprovalPolicyResponse(
+                entity.getResourceId(),
+                entity.getManagerId(),
+                entity.getApprovalMode().name(),
+                requiresApproval,
+                entity.getMaxBookingDurationMinutes(),
+                entity.getAdvanceBookingWindowDays(),
+                entity.isAllowWaitlist()
+        );
     }
 
     @Transactional

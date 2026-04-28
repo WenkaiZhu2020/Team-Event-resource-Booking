@@ -39,3 +39,6 @@ app:
     jwt:
       issuer: ${JWT_ISSUER:team-resource-auth}
       secret-base64: ${JWT_SECRET_BASE64:VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}
+  internal-api:
+    key-header-name: ${INTERNAL_API_KEY_HEADER:X-Internal-Api-Key}
+    key-value: ${RESOURCE_SERVICE_API_KEY:change-me}
