@@ -2,6 +2,7 @@ package com.teamresource.booking.service;
 
 import com.teamresource.booking.api.dto.BookingResponse;
 import com.teamresource.booking.domain.BookingStatus;
+import com.teamresource.booking.domain.model.ApprovalStatus;
 import com.teamresource.booking.infra.persistence.BookingEntity;
 import com.teamresource.booking.infra.persistence.BookingLockEntity;
 import com.teamresource.booking.infra.persistence.BookingLockRepository;
@@ -41,6 +42,8 @@ public class BookingTransitionService {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         entity.setStatus(BookingStatus.CANCELLED);
         entity.setCancelledAt(now);
+        entity.setCancellationReason(noteOrDefault(entity.getDecisionNote()));
+        entity.setApprovalStatus(entity.getApprovalStatus() == null ? ApprovalStatus.REJECTED : entity.getApprovalStatus());
         entity.setUpdatedAt(now);
         BookingEntity saved = bookingRepository.save(entity);
         bookingOutboxService.record("booking.cancelled", toResponse(saved));
@@ -58,6 +61,9 @@ public class BookingTransitionService {
         entity.setStatus(BookingStatus.APPROVED);
         entity.setDecidedAt(now);
         entity.setDecisionNote(note);
+        entity.setApprovalStatus(ApprovalStatus.APPROVED);
+        entity.setConfirmedAt(now);
+        entity.setApprovedAt(now);
         entity.setUpdatedAt(now);
         BookingEntity saved = bookingRepository.save(entity);
         bookingOutboxService.record("booking.approved", toResponse(saved));
@@ -74,6 +80,9 @@ public class BookingTransitionService {
         entity.setStatus(BookingStatus.REJECTED);
         entity.setDecidedAt(now);
         entity.setDecisionNote(note);
+        entity.setApprovalStatus(ApprovalStatus.REJECTED);
+        entity.setRejectedAt(now);
+        entity.setRejectionReason(note);
         entity.setUpdatedAt(now);
         BookingEntity saved = bookingRepository.save(entity);
         bookingOutboxService.record("booking.rejected", toResponse(saved));
@@ -129,7 +138,29 @@ public class BookingTransitionService {
                 entity.getDecisionNote(),
                 entity.getCancelledAt(),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt()
+                entity.getUpdatedAt(),
+                entity.getApprovalStatus(),
+                Boolean.TRUE.equals(entity.getApprovalRequired()),
+                entity.getRequestedAt(),
+                entity.getConfirmedAt(),
+                entity.getCancellationReason(),
+                entity.getRejectedAt(),
+                entity.getRejectionReason(),
+                entity.getApprovedBy(),
+                entity.getApprovedAt(),
+                entity.getCorrelationId(),
+                entity.getWaitlistPosition() == null
+                        ? null
+                        : new com.teamresource.booking.api.dto.WaitlistEntryResponse(
+                                entity.getBookingId(),
+                                entity.getWaitlistPosition().longValue(),
+                                com.teamresource.booking.domain.model.WaitlistStatus.WAITING,
+                                null
+                        )
         );
+    }
+
+    private String noteOrDefault(String note) {
+        return note == null || note.isBlank() ? "Booking cancelled" : note;
     }
 }

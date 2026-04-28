@@ -2,6 +2,7 @@ package com.teamresource.booking.infra.persistence;
 
 import com.teamresource.booking.domain.ApprovalMode;
 import com.teamresource.booking.domain.BookingStatus;
+import com.teamresource.booking.domain.model.ApprovalStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -69,6 +70,37 @@ public class BookingEntity {
 
     @Column(name = "cancelled_at")
     private OffsetDateTime cancelledAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_status", length = 40)
+    private ApprovalStatus approvalStatus;
+
+    @Column(name = "requested_at")
+    private OffsetDateTime requestedAt;
+
+    @Column(name = "confirmed_at")
+    private OffsetDateTime confirmedAt;
+
+    @Column(name = "cancellation_reason", length = 300)
+    private String cancellationReason;
+
+    @Column(name = "rejected_at")
+    private OffsetDateTime rejectedAt;
+
+    @Column(name = "rejection_reason", length = 300)
+    private String rejectionReason;
+
+    @Column(name = "approval_required")
+    private Boolean approvalRequired;
+
+    @Column(name = "approved_by")
+    private UUID approvedBy;
+
+    @Column(name = "approved_at")
+    private OffsetDateTime approvedAt;
+
+    @Column(name = "correlation_id", length = 64)
+    private String correlationId;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -213,6 +245,86 @@ public class BookingEntity {
 
     public void setCancelledAt(OffsetDateTime cancelledAt) {
         this.cancelledAt = cancelledAt;
+    }
+
+    public ApprovalStatus getApprovalStatus() {
+        return approvalStatus;
+    }
+
+    public void setApprovalStatus(ApprovalStatus approvalStatus) {
+        this.approvalStatus = approvalStatus;
+    }
+
+    public OffsetDateTime getRequestedAt() {
+        return requestedAt;
+    }
+
+    public void setRequestedAt(OffsetDateTime requestedAt) {
+        this.requestedAt = requestedAt;
+    }
+
+    public OffsetDateTime getConfirmedAt() {
+        return confirmedAt;
+    }
+
+    public void setConfirmedAt(OffsetDateTime confirmedAt) {
+        this.confirmedAt = confirmedAt;
+    }
+
+    public String getCancellationReason() {
+        return cancellationReason;
+    }
+
+    public void setCancellationReason(String cancellationReason) {
+        this.cancellationReason = cancellationReason;
+    }
+
+    public OffsetDateTime getRejectedAt() {
+        return rejectedAt;
+    }
+
+    public void setRejectedAt(OffsetDateTime rejectedAt) {
+        this.rejectedAt = rejectedAt;
+    }
+
+    public String getRejectionReason() {
+        return rejectionReason;
+    }
+
+    public void setRejectionReason(String rejectionReason) {
+        this.rejectionReason = rejectionReason;
+    }
+
+    public Boolean getApprovalRequired() {
+        return approvalRequired;
+    }
+
+    public void setApprovalRequired(Boolean approvalRequired) {
+        this.approvalRequired = approvalRequired;
+    }
+
+    public UUID getApprovedBy() {
+        return approvedBy;
+    }
+
+    public void setApprovedBy(UUID approvedBy) {
+        this.approvedBy = approvedBy;
+    }
+
+    public OffsetDateTime getApprovedAt() {
+        return approvedAt;
+    }
+
+    public void setApprovedAt(OffsetDateTime approvedAt) {
+        this.approvedAt = approvedAt;
+    }
+
+    public String getCorrelationId() {
+        return correlationId;
+    }
+
+    public void setCorrelationId(String correlationId) {
+        this.correlationId = correlationId;
     }
 
     public OffsetDateTime getCreatedAt() {
