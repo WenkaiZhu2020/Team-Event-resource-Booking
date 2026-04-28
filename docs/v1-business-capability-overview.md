@@ -465,4 +465,4 @@ The largest opportunities for the next refactoring cycle are:
 - stronger gateway governance
 - richer role-profile modeling in user-service
 
-That makes the current V1 appropriate as a working baseline for a structured refactoring phase rather than a throwaway prototype.
+
