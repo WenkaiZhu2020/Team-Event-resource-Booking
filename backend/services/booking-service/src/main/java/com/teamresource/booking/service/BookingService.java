@@ -5,6 +5,7 @@ import com.teamresource.booking.api.dto.BookingResponse;
 import com.teamresource.booking.api.dto.CreateBookingRequest;
 import com.teamresource.booking.domain.ApprovalMode;
 import com.teamresource.booking.domain.BookingStatus;
+import com.teamresource.booking.domain.model.ApprovalStatus;
 import com.teamresource.booking.infra.client.EventClient;
 import com.teamresource.booking.infra.client.ResourceClient;
 import com.teamresource.booking.infra.client.WorkflowClient;
@@ -43,6 +44,7 @@ public class BookingService {
     private final BookingOutboxService bookingOutboxService;
     private final BookingTransitionService bookingTransitionService;
     private final WaitlistPromotionService waitlistPromotionService;
+    private final com.teamresource.booking.domain.repository.WaitlistRepository enhancedWaitlistRepository;
 
     public BookingService(
             BookingRepository bookingRepository,
@@ -55,6 +57,32 @@ public class BookingService {
             BookingTransitionService bookingTransitionService,
             WaitlistPromotionService waitlistPromotionService
     ) {
+        this(
+                bookingRepository,
+                bookingLockRepository,
+                idempotencyRecordRepository,
+                resourceClient,
+                eventClient,
+                workflowClient,
+                bookingOutboxService,
+                bookingTransitionService,
+                waitlistPromotionService,
+                null
+        );
+    }
+
+    public BookingService(
+            BookingRepository bookingRepository,
+            BookingLockRepository bookingLockRepository,
+            IdempotencyRecordRepository idempotencyRecordRepository,
+            ResourceClient resourceClient,
+            EventClient eventClient,
+            WorkflowClient workflowClient,
+            BookingOutboxService bookingOutboxService,
+            BookingTransitionService bookingTransitionService,
+            WaitlistPromotionService waitlistPromotionService,
+            com.teamresource.booking.domain.repository.WaitlistRepository enhancedWaitlistRepository
+    ) {
         this.bookingRepository = bookingRepository;
         this.bookingLockRepository = bookingLockRepository;
         this.idempotencyRecordRepository = idempotencyRecordRepository;
@@ -64,6 +92,7 @@ public class BookingService {
         this.bookingOutboxService = bookingOutboxService;
         this.bookingTransitionService = bookingTransitionService;
         this.waitlistPromotionService = waitlistPromotionService;
+        this.enhancedWaitlistRepository = enhancedWaitlistRepository;
     }
 
     @Transactional
@@ -106,6 +135,9 @@ public class BookingService {
         entity.setApprovalMode(parseApprovalMode(resource.approvalMode()));
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
+        entity.setRequestedAt(now);
+        entity.setApprovalRequired(entity.getApprovalMode() != ApprovalMode.AUTO_APPROVE);
+        entity.setCorrelationId(trimToNull(idempotencyKey));
 
         if (!overlapping.isEmpty()) {
             if (!resource.allowWaitlist()) {
@@ -113,14 +145,20 @@ public class BookingService {
             }
             entity.setStatus(BookingStatus.WAITLISTED);
             entity.setWaitlistPosition(nextWaitlistPosition(resource.resourceId()));
+            entity.setApprovalStatus(entity.getApprovalRequired() ? ApprovalStatus.PENDING : ApprovalStatus.NOT_REQUIRED);
         } else if (entity.getApprovalMode() == ApprovalMode.AUTO_APPROVE) {
             entity.setStatus(BookingStatus.APPROVED);
+            entity.setApprovalStatus(ApprovalStatus.NOT_REQUIRED);
+            entity.setConfirmedAt(now);
+            entity.setApprovedAt(now);
         } else {
             entity.setStatus(BookingStatus.PENDING_APPROVAL);
             entity.setApprovalRequestedAt(now);
+            entity.setApprovalStatus(ApprovalStatus.PENDING);
         }
 
         BookingEntity saved = bookingRepository.save(entity);
+        syncWaitlistEntry(saved, now, com.teamresource.booking.domain.model.WaitlistStatus.WAITING, null);
         storeIdempotencyRecord(saved, userId, idempotencyKey, now);
         BookingResponse response = toResponse(saved);
         if (saved.getStatus() == BookingStatus.PENDING_APPROVAL) {
@@ -156,6 +194,7 @@ public class BookingService {
         }
 
         BookingEntity saved = bookingTransitionService.cancel(entity);
+        syncWaitlistEntry(saved, OffsetDateTime.now(ZoneOffset.UTC), com.teamresource.booking.domain.model.WaitlistStatus.CANCELLED, null);
         BookingResponse response = toResponse(saved);
         waitlistPromotionService.promote(saved.getResourceId(), OCCUPYING_STATUSES);
         return response;
@@ -354,8 +393,55 @@ public class BookingService {
                 entity.getDecisionNote(),
                 entity.getCancelledAt(),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt()
+                entity.getUpdatedAt(),
+                entity.getApprovalStatus(),
+                Boolean.TRUE.equals(entity.getApprovalRequired()),
+                entity.getRequestedAt(),
+                entity.getConfirmedAt(),
+                entity.getCancellationReason(),
+                entity.getRejectedAt(),
+                entity.getRejectionReason(),
+                entity.getApprovedBy(),
+                entity.getApprovedAt(),
+                entity.getCorrelationId(),
+                entity.getWaitlistPosition() == null
+                        ? null
+                        : new com.teamresource.booking.api.dto.WaitlistEntryResponse(
+                                entity.getBookingId(),
+                                entity.getWaitlistPosition().longValue(),
+                                com.teamresource.booking.domain.model.WaitlistStatus.WAITING,
+                                null
+                        )
         );
+    }
+
+    private void syncWaitlistEntry(
+            BookingEntity entity,
+            OffsetDateTime now,
+            com.teamresource.booking.domain.model.WaitlistStatus status,
+            OffsetDateTime promotedAt
+    ) {
+        if (enhancedWaitlistRepository == null || entity.getWaitlistPosition() == null) {
+            return;
+        }
+        var existing = enhancedWaitlistRepository.findByBookingId(entity.getBookingId()).orElse(null);
+        var entry = existing == null
+                ? new com.teamresource.booking.infrastructure.persistence.entity.WaitlistEntryEntity()
+                : existing;
+        if (existing == null) {
+            entry.setId(entity.getBookingId());
+            entry.setBookingId(entity.getBookingId());
+            entry.setResourceId(entity.getResourceId());
+            entry.setUserId(entity.getUserId());
+            entry.setStartAt(entity.getStartAt());
+            entry.setEndAt(entity.getEndAt());
+            entry.setPositionIndex(entity.getWaitlistPosition().longValue());
+            entry.setCreatedAt(now);
+        }
+        entry.setStatus(status);
+        entry.setPromotedAt(promotedAt);
+        entry.setUpdatedAt(now);
+        enhancedWaitlistRepository.save(entry);
     }
 
     private String trimToNull(String value) {

@@ -4,6 +4,8 @@ import com.teamresource.booking.api.dto.ApiResponse;
 import com.teamresource.booking.api.dto.BookingDecisionRequest;
 import com.teamresource.booking.api.dto.BookingResponse;
 import com.teamresource.booking.api.dto.CreateBookingRequest;
+import com.teamresource.booking.api.dto.PageResponse;
+import com.teamresource.booking.api.dto.WaitlistEntryResponse;
 import com.teamresource.booking.service.BookingFacade;
 import com.teamresource.booking.service.command.ApproveBookingCommand;
 import com.teamresource.booking.service.command.CancelBookingCommand;
@@ -11,8 +13,10 @@ import com.teamresource.booking.service.command.CreateBookingCommand;
 import com.teamresource.booking.service.command.RejectBookingCommand;
 import jakarta.validation.Valid;
 import java.security.Principal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -58,6 +62,24 @@ public class BookingController {
         return ApiResponse.of(bookingFacade.myBookings(parsePrincipal(principal), status));
     }
 
+    @GetMapping
+    public ApiResponse<PageResponse<BookingResponse>> search(
+            @RequestParam(required = false) UUID userId,
+            @RequestParam(required = false) UUID resourceId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) OffsetDateTime from,
+            @RequestParam(required = false) OffsetDateTime to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            Authentication authentication
+    ) {
+        if (!hasRole(authentication, "ROLE_RESOURCE_MANAGER") && !hasRole(authentication, "ROLE_ADMIN")) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Booking access denied");
+        }
+        Page<BookingResponse> result = bookingFacade.search(userId, resourceId, status, from, to, page, size);
+        return ApiResponse.of(PageResponse.fromPage(result));
+    }
+
     @GetMapping("/{bookingId}")
     public ApiResponse<BookingResponse> byId(
             @PathVariable UUID bookingId,
@@ -83,6 +105,17 @@ public class BookingController {
     @GetMapping("/approvals/pending")
     public ApiResponse<List<BookingResponse>> pendingApprovals(Principal principal, Authentication authentication) {
         return ApiResponse.of(bookingFacade.pendingApprovals(parsePrincipal(principal), hasRole(authentication, "ROLE_ADMIN")));
+    }
+
+    @GetMapping("/waitlist")
+    public ApiResponse<List<WaitlistEntryResponse>> waitlist(
+            @RequestParam UUID resourceId,
+            Authentication authentication
+    ) {
+        if (!hasRole(authentication, "ROLE_RESOURCE_MANAGER") && !hasRole(authentication, "ROLE_ADMIN")) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Booking access denied");
+        }
+        return ApiResponse.of(bookingFacade.listWaitlist(resourceId));
     }
 
     @PostMapping("/{bookingId}/approve")
