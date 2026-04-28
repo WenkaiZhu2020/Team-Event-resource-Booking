@@ -1,10 +1,13 @@
 package com.teamresource.event.service;
 
 import com.teamresource.event.api.dto.CreateEventRequest;
+import com.teamresource.event.api.dto.InternalApprovalDecisionRequest;
 import com.teamresource.event.api.dto.EventResponse;
 import com.teamresource.event.api.dto.UpdateEventRequest;
+import com.teamresource.event.config.EventApprovalProperties;
 import com.teamresource.event.domain.EventCategory;
 import com.teamresource.event.domain.EventStatus;
+import com.teamresource.event.infra.client.WorkflowClient;
 import com.teamresource.event.infra.persistence.EventEntity;
 import com.teamresource.event.infra.persistence.EventRepository;
 import java.time.OffsetDateTime;
@@ -21,9 +24,21 @@ import org.springframework.web.server.ResponseStatusException;
 public class EventService {
 
     private final EventRepository eventRepository;
+    private final WorkflowClient workflowClient;
+    private final EventApprovalProperties eventApprovalProperties;
 
     public EventService(EventRepository eventRepository) {
+        this(eventRepository, null, null);
+    }
+
+    public EventService(
+            EventRepository eventRepository,
+            WorkflowClient workflowClient,
+            EventApprovalProperties eventApprovalProperties
+    ) {
         this.eventRepository = eventRepository;
+        this.workflowClient = workflowClient;
+        this.eventApprovalProperties = eventApprovalProperties;
     }
 
     @Transactional
@@ -98,6 +113,16 @@ public class EventService {
         if (entity.getStatus() == EventStatus.CANCELLED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Cancelled events cannot be published");
         }
+        if (entity.getStatus() == EventStatus.PENDING_APPROVAL) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Event approval is already pending");
+        }
+        if (requiresApproval(entity)) {
+            entity.setStatus(EventStatus.PENDING_APPROVAL);
+            entity.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+            EventResponse response = toResponse(eventRepository.save(entity));
+            workflowClient.createEventApproval(response);
+            return response;
+        }
         entity.setStatus(EventStatus.PUBLISHED);
         entity.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return toResponse(eventRepository.save(entity));
@@ -108,6 +133,17 @@ public class EventService {
         EventEntity entity = findEvent(eventId);
         requireOwnerOrAdmin(entity, currentUserId, admin);
         entity.setStatus(EventStatus.CANCELLED);
+        entity.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        return toResponse(eventRepository.save(entity));
+    }
+
+    @Transactional
+    public EventResponse applyApprovalDecision(UUID eventId, InternalApprovalDecisionRequest request) {
+        EventEntity entity = findEvent(eventId);
+        if (entity.getStatus() != EventStatus.PENDING_APPROVAL) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Event is not awaiting approval");
+        }
+        entity.setStatus(parseApprovalDecision(request.decision()));
         entity.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return toResponse(eventRepository.save(entity));
     }
@@ -138,6 +174,21 @@ public class EventService {
         if (registrationCloseAt != null && registrationCloseAt.isAfter(startAt)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Registration close must be before event start");
         }
+    }
+
+    private boolean requiresApproval(EventEntity entity) {
+        int threshold = eventApprovalProperties == null ? Integer.MAX_VALUE : eventApprovalProperties.adminCapacityThreshold();
+        return entity.getCapacity() >= threshold;
+    }
+
+    private EventStatus parseApprovalDecision(String raw) {
+        if ("APPROVED".equalsIgnoreCase(raw)) {
+            return EventStatus.PUBLISHED;
+        }
+        if ("REJECTED".equalsIgnoreCase(raw)) {
+            return EventStatus.REJECTED;
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid approval decision");
     }
 
     private EventCategory parseCategory(String raw) {

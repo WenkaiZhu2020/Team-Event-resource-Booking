@@ -42,3 +42,9 @@ app:
   internal-api:
     key-header-name: ${INTERNAL_API_KEY_HEADER:X-Internal-Api-Key}
     key-value: ${EVENT_SERVICE_API_KEY:change-me}
+  clients:
+    workflow-service-base-url: ${WORKFLOW_SERVICE_BASE_URL:http://localhost:8087}
+    workflow-service-api-key: ${WORKFLOW_SERVICE_API_KEY:change-me}
+    internal-api-header-name: ${INTERNAL_API_KEY_HEADER:X-Internal-Api-Key}
+  approval:
+    admin-capacity-threshold: ${EVENT_ADMIN_APPROVAL_CAPACITY_THRESHOLD:100}
