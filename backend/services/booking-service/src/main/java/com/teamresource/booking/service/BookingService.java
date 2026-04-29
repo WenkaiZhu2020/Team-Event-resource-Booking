@@ -24,7 +24,6 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -185,20 +184,9 @@ public class BookingService {
             OffsetDateTime to,
             Pageable pageable
     ) {
-        List<BookingResponse> filtered = bookingRepository.findAll().stream()
-                .filter(entity -> userId == null || userId.equals(entity.getUserId()))
-                .filter(entity -> resourceId == null || resourceId.equals(entity.getResourceId()))
-                .filter(entity -> status == null || status.isBlank() || entity.getStatus() == parseStatus(status))
-                .filter(entity -> from == null || !entity.getEndAt().isBefore(from))
-                .filter(entity -> to == null || !entity.getStartAt().isAfter(to))
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .map(this::toResponse)
-                .toList();
-
-        int offset = (int) pageable.getOffset();
-        int end = Math.min(offset + pageable.getPageSize(), filtered.size());
-        List<BookingResponse> pageContent = offset >= filtered.size() ? List.of() : filtered.subList(offset, end);
-        return new PageImpl<>(pageContent, pageable, filtered.size());
+        BookingStatus parsedStatus = (status == null || status.isBlank()) ? null : parseStatus(status);
+        return bookingRepository.searchBookings(userId, resourceId, parsedStatus, from, to, pageable)
+                .map(this::toResponse);
     }
 
     @Transactional(readOnly = true)

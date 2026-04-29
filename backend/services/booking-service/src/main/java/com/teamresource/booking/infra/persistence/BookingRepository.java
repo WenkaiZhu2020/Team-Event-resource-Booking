@@ -6,6 +6,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -43,4 +45,22 @@ public interface BookingRepository extends JpaRepository<BookingEntity, UUID> {
     List<BookingEntity> findWaitlistedBookings(UUID resourceId);
 
     Optional<BookingEntity> findByResourceIdAndBookingId(UUID resourceId, UUID bookingId);
+
+    @Query("""
+            select b from BookingEntity b
+            where (:userId is null or b.userId = :userId)
+              and (:resourceId is null or b.resourceId = :resourceId)
+              and (:status is null or b.status = :status)
+              and (:from is null or b.endAt >= :from)
+              and (:to is null or b.startAt <= :to)
+            order by b.createdAt desc
+            """)
+    Page<BookingEntity> searchBookings(
+            UUID userId,
+            UUID resourceId,
+            BookingStatus status,
+            OffsetDateTime from,
+            OffsetDateTime to,
+            Pageable pageable
+    );
 }
