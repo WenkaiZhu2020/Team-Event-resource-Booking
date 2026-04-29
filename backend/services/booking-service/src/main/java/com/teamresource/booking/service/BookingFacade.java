@@ -3,6 +3,7 @@ package com.teamresource.booking.service;
 import com.teamresource.booking.api.dto.BookingDecisionRequest;
 import com.teamresource.booking.api.dto.BookingResponse;
 import com.teamresource.booking.api.dto.CreateBookingRequest;
+import com.teamresource.booking.api.dto.WaitlistEntryResponse;
 import com.teamresource.booking.service.command.ApproveBookingCommand;
 import com.teamresource.booking.service.command.ApplyWorkflowDecisionCommand;
 import com.teamresource.booking.service.command.CancelBookingCommand;
@@ -15,22 +16,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
-@Service
+@Service("bookingApiFacade")
 public class BookingFacade {
 
     private final BookingService bookingService;
-    private final com.teamresource.booking.application.facade.BookingFacade enhancedFacade;
 
     public BookingFacade(BookingService bookingService) {
-        this(bookingService, null);
-    }
-
-    public BookingFacade(
-            BookingService bookingService,
-            com.teamresource.booking.application.facade.BookingFacade enhancedFacade
-    ) {
         this.bookingService = bookingService;
-        this.enhancedFacade = enhancedFacade;
     }
 
     public BookingResponse create(CreateBookingCommand command) {
@@ -74,28 +66,17 @@ public class BookingFacade {
             int page,
             int size
     ) {
-        if (enhancedFacade == null) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                    org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
-                    "Booking query layer is unavailable"
-            );
-        }
-        com.teamresource.booking.domain.model.BookingStatus mappedStatus = status == null || status.isBlank()
-                ? null
-                : com.teamresource.booking.domain.model.BookingStatus.valueOf(status.trim().toUpperCase());
-        return enhancedFacade.list(
-                new com.teamresource.booking.domain.model.BookingSearchCriteria(userId, resourceId, mappedStatus, from, to),
+        return bookingService.search(
+                userId,
+                resourceId,
+                status,
+                from,
+                to,
                 PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 100)))
         );
     }
 
-    public List<com.teamresource.booking.api.dto.WaitlistEntryResponse> listWaitlist(UUID resourceId) {
-        if (enhancedFacade == null) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                    org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
-                    "Booking waitlist layer is unavailable"
-            );
-        }
-        return enhancedFacade.listWaitlist(resourceId);
+    public List<WaitlistEntryResponse> listWaitlist(UUID resourceId) {
+        return bookingService.listWaitlist(resourceId);
     }
 }

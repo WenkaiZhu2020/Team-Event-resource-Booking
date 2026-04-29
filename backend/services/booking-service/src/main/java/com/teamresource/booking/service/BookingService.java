@@ -10,7 +10,6 @@ import com.teamresource.booking.infra.client.EventClient;
 import com.teamresource.booking.infra.client.ResourceClient;
 import com.teamresource.booking.infra.client.WorkflowClient;
 import com.teamresource.booking.infra.persistence.BookingEntity;
-import com.teamresource.booking.infra.persistence.BookingLockEntity;
 import com.teamresource.booking.infra.persistence.BookingLockRepository;
 import com.teamresource.booking.infra.persistence.BookingRepository;
 import com.teamresource.booking.infra.persistence.IdempotencyRecordEntity;
@@ -24,6 +23,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -44,32 +45,7 @@ public class BookingService {
     private final BookingOutboxService bookingOutboxService;
     private final BookingTransitionService bookingTransitionService;
     private final WaitlistPromotionService waitlistPromotionService;
-    private final com.teamresource.booking.domain.repository.WaitlistRepository enhancedWaitlistRepository;
-
-    public BookingService(
-            BookingRepository bookingRepository,
-            BookingLockRepository bookingLockRepository,
-            IdempotencyRecordRepository idempotencyRecordRepository,
-            ResourceClient resourceClient,
-            EventClient eventClient,
-            WorkflowClient workflowClient,
-            BookingOutboxService bookingOutboxService,
-            BookingTransitionService bookingTransitionService,
-            WaitlistPromotionService waitlistPromotionService
-    ) {
-        this(
-                bookingRepository,
-                bookingLockRepository,
-                idempotencyRecordRepository,
-                resourceClient,
-                eventClient,
-                workflowClient,
-                bookingOutboxService,
-                bookingTransitionService,
-                waitlistPromotionService,
-                null
-        );
-    }
+    private final BookingLockBootstrapService bookingLockBootstrapService;
 
     public BookingService(
             BookingRepository bookingRepository,
@@ -81,7 +57,7 @@ public class BookingService {
             BookingOutboxService bookingOutboxService,
             BookingTransitionService bookingTransitionService,
             WaitlistPromotionService waitlistPromotionService,
-            com.teamresource.booking.domain.repository.WaitlistRepository enhancedWaitlistRepository
+            BookingLockBootstrapService bookingLockBootstrapService
     ) {
         this.bookingRepository = bookingRepository;
         this.bookingLockRepository = bookingLockRepository;
@@ -92,7 +68,7 @@ public class BookingService {
         this.bookingOutboxService = bookingOutboxService;
         this.bookingTransitionService = bookingTransitionService;
         this.waitlistPromotionService = waitlistPromotionService;
-        this.enhancedWaitlistRepository = enhancedWaitlistRepository;
+        this.bookingLockBootstrapService = bookingLockBootstrapService;
     }
 
     @Transactional
@@ -158,7 +134,6 @@ public class BookingService {
         }
 
         BookingEntity saved = bookingRepository.save(entity);
-        syncWaitlistEntry(saved, now, com.teamresource.booking.domain.model.WaitlistStatus.WAITING, null);
         storeIdempotencyRecord(saved, userId, idempotencyKey, now);
         BookingResponse response = toResponse(saved);
         if (saved.getStatus() == BookingStatus.PENDING_APPROVAL) {
@@ -194,10 +169,36 @@ public class BookingService {
         }
 
         BookingEntity saved = bookingTransitionService.cancel(entity);
-        syncWaitlistEntry(saved, OffsetDateTime.now(ZoneOffset.UTC), com.teamresource.booking.domain.model.WaitlistStatus.CANCELLED, null);
         BookingResponse response = toResponse(saved);
         waitlistPromotionService.promote(saved.getResourceId(), OCCUPYING_STATUSES);
         return response;
+    }
+
+
+    @Transactional(readOnly = true)
+    public Page<BookingResponse> search(
+            UUID userId,
+            UUID resourceId,
+            String status,
+            OffsetDateTime from,
+            OffsetDateTime to,
+            Pageable pageable
+    ) {
+        BookingStatus parsedStatus = (status == null || status.isBlank()) ? null : parseStatus(status);
+        return bookingRepository.searchBookings(userId, resourceId, parsedStatus, from, to, pageable)
+                .map(this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.teamresource.booking.api.dto.WaitlistEntryResponse> listWaitlist(UUID resourceId) {
+        return bookingRepository.findWaitlistedBookings(resourceId).stream()
+                .map(entity -> new com.teamresource.booking.api.dto.WaitlistEntryResponse(
+                        entity.getBookingId(),
+                        entity.getWaitlistPosition() == null ? null : entity.getWaitlistPosition().longValue(),
+                        com.teamresource.booking.domain.model.WaitlistStatus.WAITING,
+                        null
+                ))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -306,19 +307,9 @@ public class BookingService {
     }
 
     private void acquireResourceLock(UUID resourceId) {
-        try {
-            bookingLockRepository.lockByResourceId(resourceId).orElseGet(() -> {
-                BookingLockEntity lockEntity = new BookingLockEntity();
-                lockEntity.setResourceId(resourceId);
-                lockEntity.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-                bookingLockRepository.saveAndFlush(lockEntity);
-                return bookingLockRepository.lockByResourceId(resourceId)
-                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to acquire booking lock"));
-            });
-        } catch (DataIntegrityViolationException ex) {
-            bookingLockRepository.lockByResourceId(resourceId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to acquire booking lock"));
-        }
+        bookingLockBootstrapService.ensureLockExists(resourceId);
+        bookingLockRepository.lockByResourceId(resourceId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to acquire booking lock"));
     }
 
     private void storeIdempotencyRecord(BookingEntity entity, UUID userId, String idempotencyKey, OffsetDateTime now) {
@@ -413,35 +404,6 @@ public class BookingService {
                                 null
                         )
         );
-    }
-
-    private void syncWaitlistEntry(
-            BookingEntity entity,
-            OffsetDateTime now,
-            com.teamresource.booking.domain.model.WaitlistStatus status,
-            OffsetDateTime promotedAt
-    ) {
-        if (enhancedWaitlistRepository == null || entity.getWaitlistPosition() == null) {
-            return;
-        }
-        var existing = enhancedWaitlistRepository.findByBookingId(entity.getBookingId()).orElse(null);
-        var entry = existing == null
-                ? new com.teamresource.booking.infrastructure.persistence.entity.WaitlistEntryEntity()
-                : existing;
-        if (existing == null) {
-            entry.setId(entity.getBookingId());
-            entry.setBookingId(entity.getBookingId());
-            entry.setResourceId(entity.getResourceId());
-            entry.setUserId(entity.getUserId());
-            entry.setStartAt(entity.getStartAt());
-            entry.setEndAt(entity.getEndAt());
-            entry.setPositionIndex(entity.getWaitlistPosition().longValue());
-            entry.setCreatedAt(now);
-        }
-        entry.setStatus(status);
-        entry.setPromotedAt(promotedAt);
-        entry.setUpdatedAt(now);
-        enhancedWaitlistRepository.save(entry);
     }
 
     private String trimToNull(String value) {

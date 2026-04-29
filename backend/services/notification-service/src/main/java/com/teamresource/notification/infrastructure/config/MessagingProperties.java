@@ -1,10 +1,8 @@
 package com.teamresource.notification.infrastructure.config;
 
-import org.springframework.context.annotation.Profile;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "app.messaging")
-@Profile("source-architecture")
 public record MessagingProperties(
         String inboundExchange,
         String inboundRoutingKey,

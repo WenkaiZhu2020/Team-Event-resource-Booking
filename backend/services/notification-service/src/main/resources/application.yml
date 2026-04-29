@@ -53,3 +53,19 @@ app:
     fixed-delay-ms: ${EVENT_REMINDER_FIXED_DELAY_MS:900000}
     initial-delay-ms: ${EVENT_REMINDER_INITIAL_DELAY_MS:30000}
     lookahead-hours: ${EVENT_REMINDER_LOOKAHEAD_HOURS:24}
+
+  messaging:
+    inbound-exchange: ${NOTIFICATION_INBOUND_EXCHANGE:team-resource.events}
+    inbound-routing-key: ${NOTIFICATION_INBOUND_ROUTING_KEY:booking.*}
+    consumers:
+      booking-events-queue: ${NOTIFICATION_BOOKING_EVENTS_QUEUE:notification.booking.events.v2}
+      booking-events-dlq: ${NOTIFICATION_BOOKING_EVENTS_DLQ:notification.booking.events.v2.dlq}
+    retry:
+      max-attempts: ${NOTIFICATION_RETRY_MAX_ATTEMPTS:3}
+      backoff-seconds: ${NOTIFICATION_RETRY_BACKOFF_SECONDS:60}
+    reminder:
+      polling-seconds: ${NOTIFICATION_REMINDER_POLLING_SECONDS:60}
+  channels:
+    email:
+      enabled: ${NOTIFICATION_EMAIL_ENABLED:true}
+      from: ${NOTIFICATION_EMAIL_FROM:no-reply@teamresource.local}

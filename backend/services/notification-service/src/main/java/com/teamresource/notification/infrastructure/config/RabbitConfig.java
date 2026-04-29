@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@Profile("source-architecture")
+@Profile("stage2-layered-inactive")
 public class RabbitConfig {
 
     @Bean

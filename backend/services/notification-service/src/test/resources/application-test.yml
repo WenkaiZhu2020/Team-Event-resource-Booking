@@ -1,0 +1,47 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:notificationdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false;INIT=CREATE SCHEMA IF NOT EXISTS notifications\;SET SCHEMA notifications
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        default_schema: notifications
+  flyway:
+    enabled: false
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
+app:
+  security:
+    jwt:
+      issuer: test-issuer
+      secret-base64: VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==
+  clients:
+    event-service-base-url: http://localhost:18083
+    event-service-api-key: test-key
+    internal-api-header-name: X-Internal-Api-Key
+  reminders:
+    enabled: false
+    fixed-delay-ms: 900000
+    initial-delay-ms: 30000
+    lookahead-hours: 24
+  channels:
+    email:
+      enabled: true
+      from: test@teamresource.local
+  messaging:
+    inbound-exchange: team-resource.events
+    inbound-routing-key: booking.*
+    consumers:
+      booking-events-queue: notification.booking.events.v2
+      booking-events-dlq: notification.booking.events.v2.dlq
+    retry:
+      max-attempts: 3
+      backoff-seconds: 1
+    reminder:
+      polling-seconds: 60

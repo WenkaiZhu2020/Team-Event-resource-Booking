@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("source-architecture")
+@Profile("stage2-layered-inactive")
 public class JwtTokenService {
 
     private final SecretKey key;

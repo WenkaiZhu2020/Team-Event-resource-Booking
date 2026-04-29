@@ -16,7 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("source-architecture")
+@Profile("stage2-layered-inactive")
 public class OutboxDomainEventPublisher implements DomainEventPublisher {
 
     private final OutboxRepository outboxRepository;

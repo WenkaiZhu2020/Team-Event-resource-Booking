@@ -14,7 +14,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("source-architecture")
+@Profile("stage2-layered-inactive")
 public class JsonAuthEntryPoint implements AuthenticationEntryPoint {
 
     private final ObjectMapper objectMapper;

@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: ${BOOKING_DB_URL:jdbc:postgresql://localhost:5432/team_resource_mgmt}
+    username: ${BOOKING_DB_USERNAME:team_resource}
+    password: ${BOOKING_DB_PASSWORD:team_resource}
