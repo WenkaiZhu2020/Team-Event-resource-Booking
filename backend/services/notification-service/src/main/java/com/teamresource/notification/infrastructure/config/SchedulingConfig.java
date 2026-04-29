@@ -6,6 +6,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @Configuration
 @EnableScheduling
-@Profile("source-architecture")
+@Profile("stage2-layered-inactive")
 public class SchedulingConfig {
 }

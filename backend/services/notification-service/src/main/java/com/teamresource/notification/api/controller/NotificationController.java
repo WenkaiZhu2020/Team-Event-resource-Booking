@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/notifications")
-@Profile("source-architecture")
+@Profile("stage2-layered-inactive")
 public class NotificationController {
 
     private final NotificationFacade facade;

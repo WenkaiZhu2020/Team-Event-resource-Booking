@@ -15,7 +15,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableMethodSecurity
-@Profile("source-architecture")
+@Profile("stage2-layered-inactive")
 public class SecurityConfig {
 
     @Bean

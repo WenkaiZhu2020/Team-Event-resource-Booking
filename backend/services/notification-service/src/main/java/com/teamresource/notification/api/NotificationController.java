@@ -5,6 +5,7 @@ import com.teamresource.notification.api.dto.BatchReadRequest;
 import com.teamresource.notification.api.dto.NotificationResponse;
 import com.teamresource.notification.api.dto.PageResponse;
 import com.teamresource.notification.api.dto.UnreadCountResponse;
+import com.teamresource.notification.application.facade.NotificationFacade;
 import com.teamresource.notification.application.service.CurrentUserResolver;
 import com.teamresource.notification.application.service.NotificationViewMapper;
 import com.teamresource.notification.domain.model.NotificationChannel;
@@ -15,7 +16,6 @@ import jakarta.validation.Valid;
 import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -35,18 +35,20 @@ import org.springframework.web.server.ResponseStatusException;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final NotificationFacade enhancedFacade;
+    private final NotificationViewMapper notificationViewMapper;
+    private final CurrentUserResolver currentUserResolver;
 
-    @Autowired(required = false)
-    private com.teamresource.notification.application.facade.NotificationFacade enhancedFacade;
-
-    @Autowired(required = false)
-    private NotificationViewMapper notificationViewMapper;
-
-    @Autowired(required = false)
-    private CurrentUserResolver currentUserResolver;
-
-    public NotificationController(NotificationService notificationService) {
+    public NotificationController(
+            NotificationService notificationService,
+            NotificationFacade enhancedFacade,
+            NotificationViewMapper notificationViewMapper,
+            CurrentUserResolver currentUserResolver
+    ) {
         this.notificationService = notificationService;
+        this.enhancedFacade = enhancedFacade;
+        this.notificationViewMapper = notificationViewMapper;
+        this.currentUserResolver = currentUserResolver;
     }
 
     @GetMapping("/me")
@@ -67,7 +69,6 @@ public class NotificationController {
             @RequestParam(defaultValue = "20") int size,
             Authentication authentication
     ) {
-        requireEnhancedFacade();
         UUID userId = currentUserResolver.userId(authentication);
         Page<NotificationResponse> result = enhancedFacade.listForUser(
                         userId,
@@ -90,7 +91,6 @@ public class NotificationController {
 
     @GetMapping("/{notificationId}")
     public ApiResponse<NotificationResponse> getById(@PathVariable UUID notificationId, Authentication authentication) {
-        requireEnhancedFacade();
         UUID userId = currentUserResolver.userId(authentication);
         boolean admin = currentUserResolver.isAdmin(authentication);
         return ApiResponse.of(notificationViewMapper.toResponse(enhancedFacade.getById(userId, notificationId, admin)));
@@ -108,7 +108,6 @@ public class NotificationController {
 
     @PostMapping("/read-batch")
     public ApiResponse<Integer> markReadBatch(@Valid @RequestBody BatchReadRequest request, Authentication authentication) {
-        requireEnhancedFacade();
         UUID userId = currentUserResolver.userId(authentication);
         boolean admin = currentUserResolver.isAdmin(authentication);
         return ApiResponse.of(enhancedFacade.markReadBatch(userId, request.notificationIds(), admin));
@@ -119,12 +118,6 @@ public class NotificationController {
             return UUID.fromString(principal.getName());
         } catch (Exception ex) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid principal");
-        }
-    }
-
-    private void requireEnhancedFacade() {
-        if (enhancedFacade == null || notificationViewMapper == null || currentUserResolver == null) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Notification query layer is unavailable");
         }
     }
 }

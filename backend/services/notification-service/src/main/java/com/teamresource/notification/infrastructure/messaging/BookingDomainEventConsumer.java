@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
-@Profile("source-architecture")
+@Profile("stage2-layered-inactive")
 public class BookingDomainEventConsumer {
 
     private final ObjectMapper objectMapper;

@@ -1,57 +1,66 @@
 package com.teamresource.notification.api;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.teamresource.notification.api.dto.NotificationResponse;
-import com.teamresource.notification.api.dto.UnreadCountResponse;
-import com.teamresource.notification.service.NotificationService;
-import java.security.Principal;
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.UUID;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
-import org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.FilterType;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.web.servlet.MockMvc;
-
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(
-        controllers = NotificationController.class,
-        excludeAutoConfiguration = {SecurityAutoConfiguration.class, SecurityFilterAutoConfiguration.class},
-        excludeFilters = {
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.teamresource.notification.infra.security.JwtAuthenticationFilter.class)
-        }
-)
-@AutoConfigureMockMvc(addFilters = false)
-@Import(NotificationControllerTest.TestConfig.class)
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.teamresource.notification.api.dto.NotificationResponse;
+import com.teamresource.notification.api.dto.PageResponse;
+import com.teamresource.notification.api.dto.UnreadCountResponse;
+import com.teamresource.notification.application.facade.NotificationFacade;
+import com.teamresource.notification.application.service.CurrentUserResolver;
+import com.teamresource.notification.application.service.NotificationViewMapper;
+import com.teamresource.notification.domain.model.NotificationChannel;
+import com.teamresource.notification.domain.model.NotificationStatus;
+import com.teamresource.notification.domain.model.NotificationType;
+import com.teamresource.notification.infrastructure.persistence.entity.NotificationEntity;
+import com.teamresource.notification.service.NotificationService;
+import java.security.Principal;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
 class NotificationControllerTest {
 
-    @Autowired
+    private final StubNotificationService notificationService = new StubNotificationService();
+    private final StubNotificationFacade notificationFacade = new StubNotificationFacade();
+    private final StubNotificationViewMapper notificationViewMapper = new StubNotificationViewMapper();
+    private final StubCurrentUserResolver currentUserResolver = new StubCurrentUserResolver();
+    private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private StubNotificationService notificationService;
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(new NotificationController(
+                        notificationService,
+                        notificationFacade,
+                        notificationViewMapper,
+                        currentUserResolver
+                ))
+                .setControllerAdvice(new ApiGlobalExceptionHandler())
+                .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
+                .build();
+    }
 
     @Test
     void myNotificationsShouldReturnPayload() throws Exception {
         UUID userId = UUID.randomUUID();
-        notificationService.notifications = List.of(notificationResponse());
+        notificationService.myNotifications = List.of(notificationResponse());
 
-        mockMvc.perform(get("/api/v1/notifications/me").principal(userId::toString))
+        mockMvc.perform(get("/api/v1/notifications/me").principal((Principal) userId::toString))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].subject").value("Upcoming event"));
     }
@@ -59,9 +68,9 @@ class NotificationControllerTest {
     @Test
     void unreadCountShouldReturnValue() throws Exception {
         UUID userId = UUID.randomUUID();
-        notificationService.unreadCountResponse = new UnreadCountResponse(4);
+        notificationService.unreadCount = new UnreadCountResponse(4);
 
-        mockMvc.perform(get("/api/v1/notifications/me/unread-count").principal(userId::toString))
+        mockMvc.perform(get("/api/v1/notifications/me/unread-count").principal((Principal) userId::toString))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.unreadCount").value(4));
     }
@@ -71,44 +80,100 @@ class NotificationControllerTest {
         UUID userId = UUID.randomUUID();
         notificationService.markReadResponse = notificationResponse();
 
-        mockMvc.perform(post("/api/v1/notifications/{notificationId}/read", UUID.randomUUID()).principal(userId::toString))
+        mockMvc.perform(post("/api/v1/notifications/{notificationId}/read", UUID.randomUUID()).principal((Principal) userId::toString))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.notificationType").value("EVENT_REMINDER"));
     }
 
-    @TestConfiguration
-    static class TestConfig {
+    @Test
+    void listNotificationsShouldUseEnhancedFacade() throws Exception {
+        UUID userId = UUID.randomUUID();
+        currentUserResolver.userId = userId;
+        currentUserResolver.admin = false;
+        notificationFacade.page = new PageImpl<>(List.of(entity()), PageRequest.of(0, 20), 1);
+        notificationViewMapper.response = notificationResponse();
+        Authentication authentication = new TestingAuthenticationToken(userId.toString(), null, "ROLE_USER");
 
-        @Bean
-        StubNotificationService notificationService() {
-            return new StubNotificationService();
-        }
+        mockMvc.perform(get("/api/v1/notifications").principal(authentication))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].subject").value("Upcoming event"));
     }
 
     static class StubNotificationService extends NotificationService {
-
-        private List<NotificationResponse> notifications = List.of();
-        private UnreadCountResponse unreadCountResponse = new UnreadCountResponse(0);
+        private List<NotificationResponse> myNotifications = List.of();
+        private UnreadCountResponse unreadCount = new UnreadCountResponse(0);
         private NotificationResponse markReadResponse;
 
         StubNotificationService() {
-            super(null, null, null, null, null, null);
+            super(null, null, null, null, null, new ObjectMapper().registerModule(new JavaTimeModule()));
         }
 
         @Override
         public List<NotificationResponse> myNotifications(UUID userId, String channel) {
-            return notifications;
+            return myNotifications;
         }
 
         @Override
         public UnreadCountResponse unreadCount(UUID userId) {
-            return unreadCountResponse;
+            return unreadCount;
         }
 
         @Override
         public NotificationResponse markRead(UUID notificationId, UUID userId) {
             return markReadResponse;
         }
+    }
+
+    static class StubNotificationFacade extends NotificationFacade {
+        private org.springframework.data.domain.Page<NotificationEntity> page = new PageImpl<>(List.of());
+
+        StubNotificationFacade() {
+            super(null, null, null);
+        }
+
+        @Override
+        public org.springframework.data.domain.Page<NotificationEntity> listForUser(
+                UUID userId,
+                NotificationStatus status,
+                NotificationChannel channel,
+                NotificationType type,
+                Boolean unreadOnly,
+                org.springframework.data.domain.Pageable pageable
+        ) {
+            return page;
+        }
+    }
+
+    static class StubNotificationViewMapper extends NotificationViewMapper {
+        private NotificationResponse response;
+
+        @Override
+        public NotificationResponse toResponse(NotificationEntity entity) {
+            return response;
+        }
+    }
+
+    static class StubCurrentUserResolver extends CurrentUserResolver {
+        private UUID userId;
+        private boolean admin;
+
+        @Override
+        public UUID userId(Authentication authentication) {
+            return userId;
+        }
+
+        @Override
+        public boolean isAdmin(Authentication authentication) {
+            return admin;
+        }
+    }
+
+    private static NotificationEntity entity() {
+        NotificationEntity entity = new NotificationEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setUserId(UUID.randomUUID());
+        entity.setCreatedAt(OffsetDateTime.parse("2026-06-01T10:00:00Z"));
+        return entity;
     }
 
     private static NotificationResponse notificationResponse() {

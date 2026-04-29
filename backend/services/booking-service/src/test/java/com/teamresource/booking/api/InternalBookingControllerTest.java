@@ -1,48 +1,37 @@
 package com.teamresource.booking.api;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.teamresource.booking.api.dto.BookingResponse;
-import com.teamresource.booking.service.BookingFacade;
-import com.teamresource.booking.service.command.ApplyWorkflowDecisionCommand;
-import java.time.OffsetDateTime;
-import java.util.UUID;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
-import org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.FilterType;
-import org.springframework.test.web.servlet.MockMvc;
-
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(
-        controllers = InternalBookingController.class,
-        excludeAutoConfiguration = {SecurityAutoConfiguration.class, SecurityFilterAutoConfiguration.class},
-        excludeFilters = {
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.teamresource.booking.infra.security.JwtAuthenticationFilter.class),
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.teamresource.booking.infra.security.InternalApiKeyFilter.class)
-        }
-)
-@AutoConfigureMockMvc(addFilters = false)
-@Import(InternalBookingControllerTest.TestConfig.class)
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.teamresource.booking.api.dto.BookingResponse;
+import com.teamresource.booking.domain.model.ApprovalStatus;
+import com.teamresource.booking.service.BookingFacade;
+import com.teamresource.booking.service.command.ApplyWorkflowDecisionCommand;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
 class InternalBookingControllerTest {
 
-    @Autowired
+    private final StubBookingFacade bookingFacade = new StubBookingFacade();
+    private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private StubBookingFacade bookingFacade;
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(new InternalBookingController(bookingFacade))
+                .setControllerAdvice(new ApiGlobalExceptionHandler())
+                .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
+                .build();
+    }
 
     @Test
     void applyDecisionShouldReturnWorkflowAppliedBooking() throws Exception {
@@ -73,15 +62,6 @@ class InternalBookingControllerTest {
                 .andExpect(jsonPath("$.message").value("Validation failed"));
     }
 
-    @TestConfiguration
-    static class TestConfig {
-
-        @Bean
-        StubBookingFacade bookingFacade() {
-            return new StubBookingFacade();
-        }
-    }
-
     static class StubBookingFacade extends BookingFacade {
 
         private BookingResponse response;
@@ -97,6 +77,8 @@ class InternalBookingControllerTest {
     }
 
     private static BookingResponse bookingResponse() {
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-05-01T10:00:00Z");
+        OffsetDateTime approvedAt = OffsetDateTime.parse("2026-05-01T11:00:00Z");
         return new BookingResponse(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
@@ -111,12 +93,23 @@ class InternalBookingControllerTest {
                 "APPROVED",
                 "MANAGER_APPROVAL",
                 null,
-                OffsetDateTime.parse("2026-05-01T10:00:00Z"),
-                OffsetDateTime.parse("2026-05-01T11:00:00Z"),
+                createdAt,
+                approvedAt,
                 "valid",
                 null,
-                OffsetDateTime.parse("2026-05-01T10:00:00Z"),
-                OffsetDateTime.parse("2026-05-01T10:00:00Z")
+                createdAt,
+                createdAt,
+                ApprovalStatus.APPROVED,
+                true,
+                createdAt,
+                approvedAt,
+                null,
+                null,
+                null,
+                UUID.randomUUID(),
+                approvedAt,
+                "corr-1",
+                null
         );
     }
 }

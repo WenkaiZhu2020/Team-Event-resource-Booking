@@ -14,7 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-@Profile("source-architecture")
+@Profile("stage2-layered-inactive")
 public class InternalApiKeyFilter extends OncePerRequestFilter {
 
     private final InternalApiProperties properties;

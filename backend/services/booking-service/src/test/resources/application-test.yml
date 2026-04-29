@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:bookingdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false;INIT=CREATE SCHEMA IF NOT EXISTS bookings\;SET SCHEMA bookings
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        default_schema: bookings
+  flyway:
+    enabled: false
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
+app:
+  security:
+    jwt:
+      issuer: test-issuer
+      secret-base64: VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==
+  internal-api:
+    key-header-name: X-Internal-Api-Key
+    key-value: test-key
+  clients:
+    resource-service-base-url: http://localhost:18084
+    event-service-base-url: http://localhost:18083
+    workflow-service-base-url: http://localhost:18087
+    workflow-service-api-key: test-key
+    internal-api-header-name: X-Internal-Api-Key

@@ -39,7 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @Validated
 @RequestMapping("/api/v1/bookings")
-@Profile("source-architecture")
+@Profile("stage2-layered-inactive")
 public class BookingController {
 
     private final BookingFacade bookingFacade;

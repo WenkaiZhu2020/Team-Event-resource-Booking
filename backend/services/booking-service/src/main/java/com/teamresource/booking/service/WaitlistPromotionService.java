@@ -20,26 +20,15 @@ public class WaitlistPromotionService {
     private final BookingRepository bookingRepository;
     private final WorkflowClient workflowClient;
     private final BookingOutboxService bookingOutboxService;
-    private final com.teamresource.booking.domain.repository.WaitlistRepository enhancedWaitlistRepository;
 
     public WaitlistPromotionService(
             BookingRepository bookingRepository,
             WorkflowClient workflowClient,
             BookingOutboxService bookingOutboxService
     ) {
-        this(bookingRepository, workflowClient, bookingOutboxService, null);
-    }
-
-    public WaitlistPromotionService(
-            BookingRepository bookingRepository,
-            WorkflowClient workflowClient,
-            BookingOutboxService bookingOutboxService,
-            com.teamresource.booking.domain.repository.WaitlistRepository enhancedWaitlistRepository
-    ) {
         this.bookingRepository = bookingRepository;
         this.workflowClient = workflowClient;
         this.bookingOutboxService = bookingOutboxService;
-        this.enhancedWaitlistRepository = enhancedWaitlistRepository;
     }
 
     public void promote(UUID resourceId, Set<BookingStatus> occupyingStatuses) {
@@ -69,7 +58,6 @@ public class WaitlistPromotionService {
             }
             candidate.setUpdatedAt(now);
             BookingEntity saved = bookingRepository.save(candidate);
-            syncPromotion(saved, now);
             BookingResponse response = toResponse(saved);
             if (saved.getStatus() == BookingStatus.PENDING_APPROVAL) {
                 workflowClient.createBookingApproval(response);
@@ -120,15 +108,4 @@ public class WaitlistPromotionService {
         );
     }
 
-    private void syncPromotion(BookingEntity entity, OffsetDateTime now) {
-        if (enhancedWaitlistRepository == null) {
-            return;
-        }
-        enhancedWaitlistRepository.findByBookingId(entity.getBookingId()).ifPresent(entry -> {
-            entry.setStatus(com.teamresource.booking.domain.model.WaitlistStatus.PROMOTED);
-            entry.setPromotedAt(now);
-            entry.setUpdatedAt(now);
-            enhancedWaitlistRepository.save(entry);
-        });
-    }
 }

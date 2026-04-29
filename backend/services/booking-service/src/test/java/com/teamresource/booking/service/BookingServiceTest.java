@@ -28,6 +28,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -59,6 +60,7 @@ class BookingServiceTest {
     private StubBookingOutboxService bookingOutboxService;
     private BookingTransitionService bookingTransitionService;
     private WaitlistPromotionService waitlistPromotionService;
+    private BookingLockBootstrapService bookingLockBootstrapService;
     private BookingService bookingService;
 
     @BeforeEach
@@ -77,6 +79,11 @@ class BookingServiceTest {
                 workflowClient,
                 bookingOutboxService
         );
+        bookingLockBootstrapService = new BookingLockBootstrapService(new JdbcTemplate()) {
+            @Override
+            public void ensureLockExists(UUID resourceId) {
+            }
+        };
         bookingService = new BookingService(
                 bookingRepository,
                 bookingLockRepository,
@@ -86,7 +93,8 @@ class BookingServiceTest {
                 workflowClient,
                 bookingOutboxService,
                 bookingTransitionService,
-                waitlistPromotionService
+                waitlistPromotionService,
+                bookingLockBootstrapService
         );
     }
 

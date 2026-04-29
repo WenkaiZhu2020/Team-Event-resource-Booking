@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: ${NOTIFICATION_DB_URL:jdbc:postgresql://localhost:5432/team_resource_mgmt}
+    username: ${NOTIFICATION_DB_USERNAME:team_resource}
+    password: ${NOTIFICATION_DB_PASSWORD:team_resource}

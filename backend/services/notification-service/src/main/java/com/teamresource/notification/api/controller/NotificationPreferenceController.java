@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/notification-preferences")
-@Profile("source-architecture")
+@Profile("stage2-layered-inactive")
 public class NotificationPreferenceController {
 
     private final NotificationFacade facade;
