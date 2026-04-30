@@ -3,6 +3,7 @@ package com.teamresource.auth.api;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teamresource.auth.api.dto.AuthResponse;
 import com.teamresource.auth.api.dto.TokenResponse;
+import com.teamresource.auth.api.dto.UpdateRolesRequest;
 import com.teamresource.auth.api.dto.UserResponse;
 import com.teamresource.auth.service.AuthApplicationService;
 import java.security.Principal;
@@ -20,6 +21,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -107,6 +109,24 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.email").value("viewer@example.com"));
     }
 
+    @Test
+    void loginShouldReturnAuthPayload() throws Exception {
+        UUID userId = UUID.randomUUID();
+        authApplicationService.loginResponse = new AuthResponse(
+                new TokenResponse("login-token", "Bearer", 1800),
+                new UserResponse(userId, "login@example.com", Set.of("USER"), "ACTIVE")
+        );
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(java.util.Map.of(
+                                "email", "login@example.com",
+                                "password", "Password123"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.tokens.accessToken").value("login-token"));
+    }
+
     @TestConfiguration
     static class TestConfig {
 
@@ -121,6 +141,7 @@ class AuthControllerTest {
         private AuthResponse registerResponse;
         private AuthResponse loginResponse;
         private UserResponse meResponse;
+        private UserResponse updateRolesResponse;
 
         StubAuthApplicationService() {
             super(null, null, null, null);
@@ -140,5 +161,28 @@ class AuthControllerTest {
         public UserResponse me(Principal principal) {
             return meResponse;
         }
+
+        @Override
+        public UserResponse updateRoles(UUID userId, Set<String> roles) {
+            return updateRolesResponse;
+        }
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void updateRolesShouldReturnUpdatedUser() throws Exception {
+        UUID userId = UUID.randomUUID();
+        authApplicationService.updateRolesResponse = new UserResponse(
+                userId,
+                "viewer@example.com",
+                Set.of("ADMIN", "USER"),
+                "ACTIVE"
+        );
+
+        mockMvc.perform(post("/api/v1/auth/users/{userId}/roles", userId)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(new UpdateRolesRequest(Set.of("ADMIN", "USER")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.roles").isArray());
     }
 }

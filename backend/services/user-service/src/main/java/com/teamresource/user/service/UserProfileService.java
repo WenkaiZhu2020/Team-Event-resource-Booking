@@ -14,6 +14,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Comparator;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -36,32 +37,33 @@ public class UserProfileService {
 
     @Transactional
     public UserProfileResponse provision(ProvisionUserRequest request) {
-        if (userProfileRepository.existsById(request.userId())) {
-            return toResponse(userProfileRepository.findById(request.userId()).orElseThrow());
-        }
-
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        UserProfileEntity profile = userProfileRepository.findById(request.userId()).orElseGet(UserProfileEntity::new);
+        boolean newProfile = profile.getUserId() == null;
 
-        UserProfileEntity profile = new UserProfileEntity();
         profile.setUserId(request.userId());
         profile.setEmail(normalizeEmail(request.email()));
         profile.setDisplayName(request.displayName().trim());
         profile.setTimezone(request.timezone().trim());
         profile.setRoleSummary(buildRoleSummary(request.roles()));
-        profile.setAccountStatus(AccountStatus.ACTIVE);
-        profile.setCreatedAt(now);
+        if (newProfile) {
+            profile.setAccountStatus(AccountStatus.ACTIVE);
+            profile.setCreatedAt(now);
+        }
         profile.setUpdatedAt(now);
         userProfileRepository.save(profile);
 
-        NotificationPreferenceEntity preference = new NotificationPreferenceEntity();
-        preference.setUserId(request.userId());
-        preference.setInAppEnabled(true);
-        preference.setEmailEnabled(true);
-        preference.setReminderMinutesBefore(30);
-        preference.setUpdatedAt(now);
-        notificationPreferenceRepository.save(preference);
+        ensureDefaultPreference(request.userId(), now);
 
         return toResponse(profile);
+    }
+
+    @Transactional
+    public UserProfileResponse syncRoles(UUID userId, Set<String> roles, String assignedBy) {
+        UserProfileEntity profile = findProfile(userId);
+        profile.setRoleSummary(buildRoleSummary(roles));
+        profile.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        return toResponse(userProfileRepository.save(profile));
     }
 
     @Transactional(readOnly = true)
@@ -103,6 +105,20 @@ public class UserProfileService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Notification preference not found"));
     }
 
+    private void ensureDefaultPreference(UUID userId, OffsetDateTime now) {
+        if (notificationPreferenceRepository.existsById(userId)) {
+            return;
+        }
+
+        NotificationPreferenceEntity preference = new NotificationPreferenceEntity();
+        preference.setUserId(userId);
+        preference.setInAppEnabled(true);
+        preference.setEmailEnabled(true);
+        preference.setReminderMinutesBefore(30);
+        preference.setUpdatedAt(now);
+        notificationPreferenceRepository.save(preference);
+    }
+
     private UserProfileResponse toResponse(UserProfileEntity profile) {
         return new UserProfileResponse(
                 profile.getUserId(),
@@ -128,12 +144,16 @@ public class UserProfileService {
         return email.trim().toLowerCase(Locale.ROOT);
     }
 
-    private String buildRoleSummary(java.util.Set<String> roles) {
+    private String buildRoleSummary(Set<String> roles) {
+        if (roles == null || roles.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one role is required");
+        }
         return roles.stream()
                 .map(String::trim)
                 .map(String::toUpperCase)
+                .filter(role -> !role.isBlank())
                 .sorted(Comparator.naturalOrder())
                 .reduce((left, right) -> left + "," + right)
-                .orElse("USER");
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one role is required"));
     }
 }

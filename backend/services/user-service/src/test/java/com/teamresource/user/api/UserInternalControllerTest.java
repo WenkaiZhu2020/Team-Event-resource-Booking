@@ -3,6 +3,7 @@ package com.teamresource.user.api;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teamresource.user.api.dto.NotificationPreferenceResponse;
 import com.teamresource.user.api.dto.ProvisionUserRequest;
+import com.teamresource.user.api.dto.SyncRolesRequest;
 import com.teamresource.user.api.dto.UpdateNotificationPreferenceRequest;
 import com.teamresource.user.api.dto.UpdateUserProfileRequest;
 import com.teamresource.user.api.dto.UserProfileResponse;
@@ -89,6 +90,7 @@ class UserInternalControllerTest {
     static class StubUserProfileService extends UserProfileService {
 
         private UserProfileResponse provisionResponse;
+        private UserProfileResponse syncRolesResponse;
 
         StubUserProfileService() {
             super(null, null);
@@ -97,6 +99,11 @@ class UserInternalControllerTest {
         @Override
         public UserProfileResponse provision(ProvisionUserRequest request) {
             return provisionResponse;
+        }
+
+        @Override
+        public UserProfileResponse syncRoles(UUID userId, java.util.Set<String> roles, String assignedBy) {
+            return syncRolesResponse;
         }
 
         @Override
@@ -118,5 +125,30 @@ class UserInternalControllerTest {
         public NotificationPreferenceResponse updatePreferences(UUID userId, UpdateNotificationPreferenceRequest request) {
             return null;
         }
+    }
+
+    @Test
+    @WithMockUser(roles = "INTERNAL_SERVICE")
+    void syncRolesShouldReturnUpdatedProfile() throws Exception {
+        UUID userId = UUID.randomUUID();
+        userProfileService.syncRolesResponse = new UserProfileResponse(
+                userId,
+                "sync@example.com",
+                "Sync User",
+                "UTC",
+                "ADMIN,USER",
+                "ACTIVE",
+                OffsetDateTime.parse("2026-01-01T10:00:00Z"),
+                OffsetDateTime.parse("2026-01-02T10:00:00Z")
+        );
+
+        mockMvc.perform(post("/api/v1/internal/users/{userId}/roles/sync", userId)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(java.util.Map.of(
+                                "roles", java.util.List.of("ADMIN", "USER"),
+                                "assignedBy", "auth-service"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.roleSummary").value("ADMIN,USER"));
     }
 }

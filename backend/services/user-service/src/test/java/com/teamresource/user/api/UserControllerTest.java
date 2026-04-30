@@ -110,6 +110,44 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.data.timezone").value("Europe/Dublin"));
     }
 
+    @Test
+    void notificationPreferencesShouldReturnPayload() throws Exception {
+        UUID userId = UUID.randomUUID();
+        userProfileService.preferencesResponse = new NotificationPreferenceResponse(true, false, 15);
+
+        mockMvc.perform(get("/api/v1/preferences/notifications").principal(() -> userId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.inAppEnabled").value(true))
+                .andExpect(jsonPath("$.data.emailEnabled").value(false))
+                .andExpect(jsonPath("$.data.reminderMinutesBefore").value(15));
+    }
+
+    @Test
+    void updateNotificationPreferencesShouldReturnPayload() throws Exception {
+        UUID userId = UUID.randomUUID();
+        userProfileService.updatePreferencesResponse = new NotificationPreferenceResponse(false, true, 5);
+
+        mockMvc.perform(put("/api/v1/preferences/notifications")
+                        .principal(() -> userId.toString())
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(java.util.Map.of(
+                                "inAppEnabled", false,
+                                "emailEnabled", true,
+                                "reminderMinutesBefore", 5
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.inAppEnabled").value(false))
+                .andExpect(jsonPath("$.data.emailEnabled").value(true))
+                .andExpect(jsonPath("$.data.reminderMinutesBefore").value(5));
+    }
+
+    @Test
+    void meShouldRejectInvalidPrincipal() throws Exception {
+        mockMvc.perform(get("/api/v1/users/me").principal(() -> "bad-principal"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Invalid principal"));
+    }
+
     @TestConfiguration
     static class TestConfig {
 
@@ -123,6 +161,8 @@ class UserControllerTest {
 
         private UserProfileResponse meResponse;
         private UserProfileResponse updateProfileResponse;
+        private NotificationPreferenceResponse preferencesResponse;
+        private NotificationPreferenceResponse updatePreferencesResponse;
 
         StubUserProfileService() {
             super(null, null);
@@ -140,12 +180,12 @@ class UserControllerTest {
 
         @Override
         public NotificationPreferenceResponse preferences(UUID userId) {
-            return null;
+            return preferencesResponse;
         }
 
         @Override
         public NotificationPreferenceResponse updatePreferences(UUID userId, UpdateNotificationPreferenceRequest request) {
-            return null;
+            return updatePreferencesResponse;
         }
 
         @Override
