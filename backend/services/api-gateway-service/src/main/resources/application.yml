@@ -4,48 +4,47 @@ server:
 spring:
   application:
     name: api-gateway-service
+  main:
+    web-application-type: reactive
   cloud:
     gateway:
-      routes:
-        - id: auth-service
-          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
-          predicates:
-            - Path=/api/v1/auth/**
-        - id: auth-oauth-service
-          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
-          predicates:
-            - Path=/oauth2/**,/login/oauth2/**
-        - id: user-service
-          uri: ${USER_SERVICE_URL:http://localhost:8082}
-          predicates:
-            - Path=/api/v1/users/**,/api/v1/preferences/**
-        - id: event-service
-          uri: ${EVENT_SERVICE_URL:http://localhost:8083}
-          predicates:
-            - Path=/api/v1/events/**
-        - id: resource-service
-          uri: ${RESOURCE_SERVICE_URL:http://localhost:8084}
-          predicates:
-            - Path=/api/v1/resources/**
-        - id: booking-service
-          uri: ${BOOKING_SERVICE_URL:http://localhost:8085}
-          predicates:
-            - Path=/api/v1/bookings/**
-        - id: notification-service
-          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8086}
-          predicates:
-            - Path=/api/v1/notifications/**
-        - id: workflow-service
-          uri: ${WORKFLOW_SERVICE_URL:http://localhost:8087}
-          predicates:
-            - Path=/api/v1/workflows/**
-        - id: analytics-service
-          uri: ${ANALYTICS_SERVICE_URL:http://localhost:8088}
-          predicates:
-            - Path=/api/v1/analytics/**
+      httpclient:
+        connect-timeout: 3000
+        response-timeout: 5s
+      default-filters:
+        - RemoveRequestHeader=Cookie
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+app:
+  security:
+    jwt:
+      secret-base64: ${JWT_SECRET_BASE64:VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==}
+  gateway:
+    services:
+      auth: ${AUTH_SERVICE_URL:http://localhost:8081}
+      user: ${USER_SERVICE_URL:http://localhost:8082}
+      event: ${EVENT_SERVICE_URL:http://localhost:8083}
+      resource: ${RESOURCE_SERVICE_URL:http://localhost:8084}
+      booking: ${BOOKING_SERVICE_URL:http://localhost:8085}
+      notification: ${NOTIFICATION_SERVICE_URL:http://localhost:8086}
+      workflow: ${WORKFLOW_SERVICE_URL:http://localhost:8087}
+      analytics: ${ANALYTICS_SERVICE_URL:http://localhost:8088}
+    public-paths:
+      - /api/v1/auth/**
+      - /oauth2/**
+      - /login/oauth2/**
+      - /actuator/health
+      - /swagger-ui.html
+      - /swagger-ui/**
+      - /v3/api-docs/**

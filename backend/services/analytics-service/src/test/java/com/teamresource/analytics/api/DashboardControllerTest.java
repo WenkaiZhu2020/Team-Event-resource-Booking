@@ -1,99 +1,181 @@
 package com.teamresource.analytics.api;
 
 import com.teamresource.analytics.api.dto.DashboardOverviewResponse;
+import com.teamresource.analytics.api.dto.EventRegistrationMetricResponse;
 import com.teamresource.analytics.api.dto.ResourcePopularityResponse;
+import com.teamresource.analytics.api.dto.ResourceUsageMetricResponse;
+import com.teamresource.analytics.service.ResourcePopularityRefreshService;
 import com.teamresource.analytics.service.facade.DashboardFacade;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
-import org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.FilterType;
-import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(
-        controllers = DashboardController.class,
-        excludeAutoConfiguration = {SecurityAutoConfiguration.class, SecurityFilterAutoConfiguration.class},
-        excludeFilters = {
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.teamresource.analytics.infra.security.JwtAuthenticationFilter.class)
-        }
-)
-@AutoConfigureMockMvc(addFilters = false)
-@Import(DashboardControllerTest.TestConfig.class)
 class DashboardControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
     private StubDashboardFacade dashboardFacade;
+    private StubResourcePopularityRefreshService resourcePopularityRefreshService;
+
+    @BeforeEach
+    void setUp() {
+        dashboardFacade = new StubDashboardFacade();
+        resourcePopularityRefreshService = new StubResourcePopularityRefreshService();
+
+        LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
+        validator.afterPropertiesSet();
+
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(
+                        new DashboardController(dashboardFacade),
+                        new AnalyticsAdminController(resourcePopularityRefreshService))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .setValidator(validator)
+                .build();
+    }
 
     @Test
     void overviewShouldReturnPayload() throws Exception {
         dashboardFacade.overviewResponse = new DashboardOverviewResponse(12, 7, 2, 1, 2, 5, 3, 840);
 
-        mockMvc.perform(get("/api/v1/analytics/dashboard/overview"))
+        mockMvc.perform(get("/api/v1/analytics/dashboard/overview")
+                        .param("from", "2026-04-01T00:00:00Z")
+                        .param("to", "2026-04-30T23:59:59Z"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalBookings").value(12))
                 .andExpect(jsonPath("$.data.approvedBookings").value(7));
     }
 
     @Test
-    void popularResourcesShouldValidateLimit() throws Exception {
-        mockMvc.perform(get("/api/v1/analytics/dashboard/resources/popular").param("limit", "101"))
-                .andExpect(status().isBadRequest());
+    void overviewShouldAlsoWorkOnShortPath() throws Exception {
+        dashboardFacade.overviewResponse = new DashboardOverviewResponse(1, 1, 0, 0, 0, 1, 1, 60);
+
+        mockMvc.perform(get("/api/v1/dashboard/overview"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalBookings").value(1));
     }
 
-    @TestConfiguration
-    static class TestConfig {
+    @Test
+    void eventRegistrationsShouldReturnPayload() throws Exception {
+        dashboardFacade.eventRegistrationResponses = List.of(new EventRegistrationMetricResponse(UUID.randomUUID(), 4, 1, 2));
 
-        @Bean
-        StubDashboardFacade dashboardFacade() {
-            return new StubDashboardFacade();
-        }
+        mockMvc.perform(get("/api/v1/dashboard/events/registrations")
+                        .param("limit", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].activeBookings").value(4))
+                .andExpect(jsonPath("$.data[0].waitlistedBookings").value(1));
+    }
+
+    @Test
+    void resourceUsageShouldReturnPayload() throws Exception {
+        dashboardFacade.resourceUsageResponses = List.of(new ResourceUsageMetricResponse(UUID.randomUUID(), 8, 6, 1, 1, 420));
+
+        mockMvc.perform(get("/api/v1/dashboard/resources/usage")
+                        .param("limit", "7"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].totalBookings").value(8))
+                .andExpect(jsonPath("$.data[0].bookedMinutes").value(420));
+    }
+
+    @Test
+    void popularResourcesShouldReturnPayload() throws Exception {
+        dashboardFacade.popularResourcesResponses = List.of(new ResourcePopularityResponse(
+                UUID.randomUUID(),
+                "Room A",
+                "ROOM",
+                5,
+                4,
+                1,
+                0,
+                0,
+                240,
+                BigDecimal.valueOf(97.5),
+                OffsetDateTime.parse("2026-06-01T10:00:00Z")
+        ));
+
+        mockMvc.perform(get("/api/v1/analytics/dashboard/resources/popular"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].resourceName").value("Room A"))
+                .andExpect(jsonPath("$.data[0].popularityScore").value(97.5));
+    }
+
+    @Test
+    void popularResourcesShouldAcceptLimitParameterInStandaloneSetup() throws Exception {
+        mockMvc.perform(get("/api/v1/analytics/dashboard/resources/popular").param("limit", "201"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void refreshShouldReturnOk() throws Exception {
+        mockMvc.perform(post("/api/v1/analytics/refresh")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value("ok"));
+
+        org.assertj.core.api.Assertions.assertThat(resourcePopularityRefreshService.refreshed).isTrue();
+    }
+
+    @Test
+    void legacyRefreshPathShouldReturnOk() throws Exception {
+        mockMvc.perform(post("/api/v1/analytics/admin/resource-popularity/refresh"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value("ok"));
     }
 
     static class StubDashboardFacade extends DashboardFacade {
 
         private DashboardOverviewResponse overviewResponse = new DashboardOverviewResponse(0, 0, 0, 0, 0, 0, 0, 0);
+        private List<EventRegistrationMetricResponse> eventRegistrationResponses = List.of();
+        private List<ResourceUsageMetricResponse> resourceUsageResponses = List.of();
+        private List<ResourcePopularityResponse> popularResourcesResponses = List.of();
 
         StubDashboardFacade() {
             super(null, Runnable::run);
         }
 
         @Override
-        public DashboardOverviewResponse overview() {
+        public DashboardOverviewResponse overview(OffsetDateTime from, OffsetDateTime to) {
             return overviewResponse;
         }
 
         @Override
-        public List<ResourcePopularityResponse> topResources(int limit) {
-            return List.of(new ResourcePopularityResponse(
-                    UUID.randomUUID(),
-                    "Room A",
-                    "ROOM",
-                    5,
-                    4,
-                    1,
-                    0,
-                    0,
-                    240,
-                    BigDecimal.valueOf(97.5),
-                    OffsetDateTime.parse("2026-06-01T10:00:00Z")
-            ));
+        public List<EventRegistrationMetricResponse> eventRegistrations(OffsetDateTime from, OffsetDateTime to, int limit) {
+            return eventRegistrationResponses;
+        }
+
+        @Override
+        public List<ResourceUsageMetricResponse> resourceUsage(OffsetDateTime from, OffsetDateTime to, int limit) {
+            return resourceUsageResponses;
+        }
+
+        @Override
+        public List<ResourcePopularityResponse> popularResources(int limit) {
+            return popularResourcesResponses;
+        }
+    }
+
+    static class StubResourcePopularityRefreshService extends ResourcePopularityRefreshService {
+
+        private boolean refreshed;
+
+        StubResourcePopularityRefreshService() {
+            super(null, null);
+        }
+
+        @Override
+        public void refresh() {
+            refreshed = true;
         }
     }
 }
