@@ -12,6 +12,23 @@ interface PreferencesPanelProps {
 export function PreferencesPanel({ preferences, loading, onChange, onSubmit }: PreferencesPanelProps) {
   return (
     <SectionPanel eyebrow="Preferences" title="Notifications">
+      <div className="insight-grid three-column">
+        <article className="insight-card accent-green">
+          <small>In-app lane</small>
+          <strong>{preferences.inAppEnabled ? 'Enabled' : 'Disabled'}</strong>
+          <p>User-visible notification records remain available in the inbox when this lane is active.</p>
+        </article>
+        <article className="insight-card accent-blue">
+          <small>Email lane</small>
+          <strong>{preferences.emailEnabled ? 'Enabled' : 'Disabled'}</strong>
+          <p>Email-simulation delivery can be toggled independently from the in-app read model.</p>
+        </article>
+        <article className="insight-card accent-amber">
+          <small>Reminder window</small>
+          <strong>{preferences.reminderMinutesBefore} min</strong>
+          <p>Lead time used by reminder-oriented notification paths before the event or booking moment arrives.</p>
+        </article>
+      </div>
       <form className="form-grid" onSubmit={onSubmit}>
         <label className="checkbox-row">
           <input
