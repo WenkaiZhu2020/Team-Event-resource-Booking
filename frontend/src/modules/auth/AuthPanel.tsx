@@ -73,7 +73,7 @@ export function AuthPanel(props: AuthPanelProps) {
             Continue with Google
           </button>
         </div>
-        {!googleEnabled ? <p className="helper-copy">Google login is currently disabled in the local environment.</p> : null}
+        {!googleEnabled ? <p className="helper-copy">Google login is unavailable.</p> : null}
       </form>
     </section>
   );
