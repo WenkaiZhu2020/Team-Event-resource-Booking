@@ -59,7 +59,7 @@ public class UserProfileService {
     }
 
     @Transactional
-    public UserProfileResponse syncRoles(UUID userId, Set<String> roles, String assignedBy) {
+    public UserProfileResponse syncRoles(UUID userId, Set<String> roles) {
         UserProfileEntity profile = findProfile(userId);
         profile.setRoleSummary(buildRoleSummary(roles));
         profile.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));

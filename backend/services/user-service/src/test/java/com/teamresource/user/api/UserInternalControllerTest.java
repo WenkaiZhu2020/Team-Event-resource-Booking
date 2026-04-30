@@ -102,7 +102,7 @@ class UserInternalControllerTest {
         }
 
         @Override
-        public UserProfileResponse syncRoles(UUID userId, java.util.Set<String> roles, String assignedBy) {
+        public UserProfileResponse syncRoles(UUID userId, java.util.Set<String> roles) {
             return syncRolesResponse;
         }
 

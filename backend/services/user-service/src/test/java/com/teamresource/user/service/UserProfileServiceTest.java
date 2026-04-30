@@ -146,7 +146,7 @@ class UserProfileServiceTest {
         when(userProfileRepository.findById(userId)).thenReturn(Optional.of(profile));
         when(userProfileRepository.save(any(UserProfileEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var response = userProfileService.syncRoles(userId, Set.of("admin", "user"), "auth-service");
+        var response = userProfileService.syncRoles(userId, Set.of("admin", "user"));
 
         assertThat(response.roleSummary()).isEqualTo("ADMIN,USER");
     }
@@ -220,7 +220,7 @@ class UserProfileServiceTest {
         UUID userId = UUID.randomUUID();
         when(userProfileRepository.findById(userId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userProfileService.syncRoles(userId, Set.of("USER"), "auth-service"))
+        assertThatThrownBy(() -> userProfileService.syncRoles(userId, Set.of("USER")))
                 .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
     }
 

@@ -161,7 +161,7 @@ public class AuthApplicationService {
                     .map(String::toUpperCase)
                     .map(Role::valueOf)
                     .collect(Collectors.toSet());
-        } catch (RuntimeException ex) {
+        } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "One or more roles are invalid");
         }
 

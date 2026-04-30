@@ -36,6 +36,6 @@ public class UserInternalController {
             @PathVariable UUID userId,
             @Valid @RequestBody SyncRolesRequest request
     ) {
-        return ApiResponse.of(userProfileService.syncRoles(userId, request.roles(), request.assignedBy()));
+        return ApiResponse.of(userProfileService.syncRoles(userId, request.roles()));
     }
 }
