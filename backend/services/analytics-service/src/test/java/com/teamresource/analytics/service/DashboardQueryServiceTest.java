@@ -25,6 +25,9 @@ import static org.mockito.Mockito.when;
 
 class DashboardQueryServiceTest {
 
+    private static final OffsetDateTime DEFAULT_FROM = OffsetDateTime.parse("2000-01-01T00:00:00Z");
+    private static final OffsetDateTime DEFAULT_TO = OffsetDateTime.parse("2100-01-01T00:00:00Z");
+
     @Test
     void queryMethodsShouldDelegateAndMapResults() {
         BookingFactRepository bookingFactRepository = mock(BookingFactRepository.class);
@@ -107,14 +110,14 @@ class DashboardQueryServiceTest {
         ResourcePopularityRepository resourcePopularityRepository = mock(ResourcePopularityRepository.class);
         DashboardQueryService service = new DashboardQueryService(bookingFactRepository, resourcePopularityRepository);
 
-        when(bookingFactRepository.countAll(null, null)).thenReturn(1L);
-        when(bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.APPROVED, null, null)).thenReturn(2L);
-        when(bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.PENDING_APPROVAL, null, null)).thenReturn(3L);
-        when(bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.WAITLISTED, null, null)).thenReturn(4L);
-        when(bookingFactRepository.countByBookingStatusIn(any(), eq(null), eq(null))).thenReturn(5L);
-        when(bookingFactRepository.countDistinctResourcesUsed(any(), eq(null), eq(null))).thenReturn(6L);
+        when(bookingFactRepository.countAll(DEFAULT_FROM, DEFAULT_TO)).thenReturn(1L);
+        when(bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.APPROVED, DEFAULT_FROM, DEFAULT_TO)).thenReturn(2L);
+        when(bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.PENDING_APPROVAL, DEFAULT_FROM, DEFAULT_TO)).thenReturn(3L);
+        when(bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.WAITLISTED, DEFAULT_FROM, DEFAULT_TO)).thenReturn(4L);
+        when(bookingFactRepository.countByBookingStatusIn(any(), eq(DEFAULT_FROM), eq(DEFAULT_TO))).thenReturn(5L);
+        when(bookingFactRepository.countDistinctResourcesUsed(any(), eq(DEFAULT_FROM), eq(DEFAULT_TO))).thenReturn(6L);
         when(bookingFactRepository.countApprovedBookingsBetween(any(), any())).thenReturn(7L);
-        when(bookingFactRepository.sumApprovedReservedMinutes(null, null)).thenReturn(8L);
+        when(bookingFactRepository.sumApprovedReservedMinutes(DEFAULT_FROM, DEFAULT_TO)).thenReturn(8L);
         when(resourcePopularityRepository.findAllByOrderByPopularityScoreDesc(PageRequest.of(0, 9))).thenReturn(List.of());
 
         assertThat(service.totalBookings()).isEqualTo(1L);
@@ -127,7 +130,7 @@ class DashboardQueryServiceTest {
         assertThat(service.totalApprovedReservedMinutes()).isEqualTo(8L);
         assertThat(service.topResources(9)).isEmpty();
 
-        verify(bookingFactRepository).countAll(null, null);
+        verify(bookingFactRepository).countAll(DEFAULT_FROM, DEFAULT_TO);
     }
 
     @Test
