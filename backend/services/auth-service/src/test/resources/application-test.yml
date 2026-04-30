@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:authdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE;INIT=CREATE SCHEMA IF NOT EXISTS auth
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        default_schema: auth
+  flyway:
+    enabled: false
+
+app:
+  security:
+    jwt:
+      issuer: test-issuer
+      secret-base64: VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==
+      access-token-minutes: 60
+  integrations:
+    user-service:
+      enabled: false
+      base-url: http://localhost:8082
+      api-key: test-key
+  oauth2:
+    google-enabled: false
+    success-redirect-url: http://localhost:5173/oauth2/callback
+    failure-redirect-url: http://localhost:5173/login

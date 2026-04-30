@@ -13,7 +13,14 @@ public class UserServiceClientConfig {
     @Bean
     UserProvisioningClient userProvisioningClient(UserServiceIntegrationProperties properties) {
         if (!properties.enabled()) {
-            return (userId, email, displayName, timezone, roles) -> {
+            return new UserProvisioningClient() {
+                @Override
+                public void provisionUser(UUID userId, String email, String displayName, String timezone, Set<String> roles) {
+                }
+
+                @Override
+                public void syncRoles(UUID userId, Set<String> roles, String assignedBy) {
+                }
             };
         }
 
@@ -22,11 +29,25 @@ public class UserServiceClientConfig {
                 .defaultHeader("X-Internal-Api-Key", properties.apiKey())
                 .build();
 
-        return (userId, email, displayName, timezone, roles) -> restClient.post()
-                .uri("/api/v1/internal/users/provision")
-                .body(new ProvisionUserRequest(userId, email, displayName, timezone, roles))
-                .retrieve()
-                .toBodilessEntity();
+        return new UserProvisioningClient() {
+            @Override
+            public void provisionUser(UUID userId, String email, String displayName, String timezone, Set<String> roles) {
+                restClient.post()
+                        .uri("/api/v1/internal/users/provision")
+                        .body(new ProvisionUserRequest(userId, email, displayName, timezone, roles))
+                        .retrieve()
+                        .toBodilessEntity();
+            }
+
+            @Override
+            public void syncRoles(UUID userId, Set<String> roles, String assignedBy) {
+                restClient.post()
+                        .uri("/api/v1/internal/users/{userId}/roles/sync", userId)
+                        .body(new SyncRolesRequest(roles, assignedBy))
+                        .retrieve()
+                        .toBodilessEntity();
+            }
+        };
     }
 
     record ProvisionUserRequest(
@@ -35,6 +56,12 @@ public class UserServiceClientConfig {
             String displayName,
             String timezone,
             Set<String> roles
+    ) {
+    }
+
+    record SyncRolesRequest(
+            Set<String> roles,
+            String assignedBy
     ) {
     }
 }

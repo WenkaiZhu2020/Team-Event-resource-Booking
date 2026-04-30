@@ -14,6 +14,7 @@ import java.time.ZoneOffset;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -64,7 +65,7 @@ public class AuthApplicationService {
                 saved.getEmail(),
                 saved.getEmail(),
                 "UTC",
-                saved.getRoles().stream().map(Role::name).collect(java.util.stream.Collectors.toSet())
+                saved.getRoles().stream().map(Role::name).collect(Collectors.toSet())
         );
         return issueAuthResponse(saved);
     }
@@ -128,7 +129,7 @@ public class AuthApplicationService {
                     saved.getEmail(),
                     saved.getDisplayName() == null ? saved.getEmail() : saved.getDisplayName(),
                     "UTC",
-                    saved.getRoles().stream().map(Role::name).collect(java.util.stream.Collectors.toSet())
+                    saved.getRoles().stream().map(Role::name).collect(Collectors.toSet())
             );
         }
         return issueAuthResponse(saved);
@@ -143,8 +144,40 @@ public class AuthApplicationService {
         return new UserResponse(
                 user.getId(),
                 user.getEmail(),
-                user.getRoles().stream().map(Role::name).collect(java.util.stream.Collectors.toSet()),
+                user.getRoles().stream().map(Role::name).collect(Collectors.toSet()),
                 user.getStatus().name()
+        );
+    }
+
+    @Transactional
+    public UserResponse updateRoles(UUID userId, Set<String> roleNames) {
+        AppUserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        Set<Role> roles;
+        try {
+            roles = roleNames.stream()
+                    .map(String::trim)
+                    .map(String::toUpperCase)
+                    .map(Role::valueOf)
+                    .collect(Collectors.toSet());
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "One or more roles are invalid");
+        }
+
+        if (roles.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one role is required");
+        }
+
+        user.setRoles(roles);
+        user.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        AppUserEntity saved = userRepository.save(user);
+        userProvisioningClient.syncRoles(saved.getId(), roles.stream().map(Role::name).collect(Collectors.toSet()), "auth-service");
+        return new UserResponse(
+                saved.getId(),
+                saved.getEmail(),
+                saved.getRoles().stream().map(Role::name).collect(Collectors.toSet()),
+                saved.getStatus().name()
         );
     }
 
@@ -154,7 +187,7 @@ public class AuthApplicationService {
         UserResponse userResponse = new UserResponse(
                 user.getId(),
                 user.getEmail(),
-                user.getRoles().stream().map(Role::name).collect(java.util.stream.Collectors.toSet()),
+                user.getRoles().stream().map(Role::name).collect(Collectors.toSet()),
                 user.getStatus().name()
         );
         return new AuthResponse(tokenResponse, userResponse);
