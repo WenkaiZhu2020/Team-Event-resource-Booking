@@ -1,9 +1,12 @@
 package com.teamresource.analytics.service.facade;
 
 import com.teamresource.analytics.api.dto.DashboardOverviewResponse;
+import com.teamresource.analytics.api.dto.EventRegistrationMetricResponse;
 import com.teamresource.analytics.api.dto.ResourcePopularityResponse;
+import com.teamresource.analytics.api.dto.ResourceUsageMetricResponse;
 import com.teamresource.analytics.service.DashboardOverviewBuilder;
 import com.teamresource.analytics.service.DashboardQueryService;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -24,15 +27,15 @@ public class DashboardFacade {
         this.analyticsTaskExecutor = analyticsTaskExecutor;
     }
 
-    public DashboardOverviewResponse overview() {
-        CompletableFuture<Long> totalBookings = CompletableFuture.supplyAsync(dashboardQueryService::totalBookings, analyticsTaskExecutor);
-        CompletableFuture<Long> approvedBookings = CompletableFuture.supplyAsync(dashboardQueryService::approvedBookings, analyticsTaskExecutor);
-        CompletableFuture<Long> pendingApprovals = CompletableFuture.supplyAsync(dashboardQueryService::pendingApprovalBookings, analyticsTaskExecutor);
-        CompletableFuture<Long> waitlistedBookings = CompletableFuture.supplyAsync(dashboardQueryService::waitlistedBookings, analyticsTaskExecutor);
-        CompletableFuture<Long> cancelledOrRejected = CompletableFuture.supplyAsync(dashboardQueryService::cancelledOrRejectedBookings, analyticsTaskExecutor);
-        CompletableFuture<Long> uniqueResources = CompletableFuture.supplyAsync(dashboardQueryService::uniqueResourcesUsed, analyticsTaskExecutor);
-        CompletableFuture<Long> upcomingApproved = CompletableFuture.supplyAsync(dashboardQueryService::nextSevenDaysApprovedBookings, analyticsTaskExecutor);
-        CompletableFuture<Long> approvedMinutes = CompletableFuture.supplyAsync(dashboardQueryService::totalApprovedReservedMinutes, analyticsTaskExecutor);
+    public DashboardOverviewResponse overview(OffsetDateTime from, OffsetDateTime to) {
+        CompletableFuture<Long> totalBookings = CompletableFuture.supplyAsync(() -> dashboardQueryService.totalBookings(from, to), analyticsTaskExecutor);
+        CompletableFuture<Long> approvedBookings = CompletableFuture.supplyAsync(() -> dashboardQueryService.approvedBookings(from, to), analyticsTaskExecutor);
+        CompletableFuture<Long> pendingApprovals = CompletableFuture.supplyAsync(() -> dashboardQueryService.pendingApprovalBookings(from, to), analyticsTaskExecutor);
+        CompletableFuture<Long> waitlistedBookings = CompletableFuture.supplyAsync(() -> dashboardQueryService.waitlistedBookings(from, to), analyticsTaskExecutor);
+        CompletableFuture<Long> cancelledOrRejected = CompletableFuture.supplyAsync(() -> dashboardQueryService.cancelledOrRejectedBookings(from, to), analyticsTaskExecutor);
+        CompletableFuture<Long> uniqueResources = CompletableFuture.supplyAsync(() -> dashboardQueryService.uniqueResourcesUsed(from, to), analyticsTaskExecutor);
+        CompletableFuture<Long> upcomingApproved = CompletableFuture.supplyAsync(() -> dashboardQueryService.nextSevenDaysApprovedBookings(from, to), analyticsTaskExecutor);
+        CompletableFuture<Long> approvedMinutes = CompletableFuture.supplyAsync(() -> dashboardQueryService.totalApprovedReservedMinutes(from, to), analyticsTaskExecutor);
 
         CompletableFuture.allOf(
                 totalBookings,
@@ -57,21 +60,19 @@ public class DashboardFacade {
                 .build();
     }
 
-    public List<ResourcePopularityResponse> topResources(int limit) {
-        return dashboardQueryService.topResources(limit).stream()
-                .map(entity -> new ResourcePopularityResponse(
-                        entity.getResourceId(),
-                        entity.getResourceName(),
-                        entity.getResourceType(),
-                        entity.getTotalBookings(),
-                        entity.getApprovedBookings(),
-                        entity.getPendingBookings(),
-                        entity.getWaitlistedBookings(),
-                        entity.getCancelledBookings(),
-                        entity.getTotalReservedMinutes(),
-                        entity.getPopularityScore(),
-                        entity.getLastRefreshedAt()
-                ))
-                .toList();
+    public DashboardOverviewResponse overview() {
+        return overview(null, null);
+    }
+
+    public List<EventRegistrationMetricResponse> eventRegistrations(OffsetDateTime from, OffsetDateTime to, int limit) {
+        return dashboardQueryService.eventRegistrationMetrics(from, to, limit);
+    }
+
+    public List<ResourceUsageMetricResponse> resourceUsage(OffsetDateTime from, OffsetDateTime to, int limit) {
+        return dashboardQueryService.resourceUsageMetrics(from, to, limit);
+    }
+
+    public List<ResourcePopularityResponse> popularResources(int limit) {
+        return dashboardQueryService.topResources(limit);
     }
 }

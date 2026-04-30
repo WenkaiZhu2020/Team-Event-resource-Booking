@@ -10,12 +10,32 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface BookingFactRepository extends JpaRepository<BookingFactEntity, UUID> {
 
-    long countByBookingStatus(BookingAnalyticsStatus bookingStatus);
+    @Query("""
+            select count(b) from BookingFactEntity b
+            where (:from is null or b.startAt >= :from) and (:to is null or b.startAt <= :to)
+            """)
+    long countAll(OffsetDateTime from, OffsetDateTime to);
 
-    long countByBookingStatusIn(Collection<BookingAnalyticsStatus> statuses);
+    @Query("""
+            select count(b) from BookingFactEntity b
+            where b.bookingStatus = :bookingStatus
+            and (:from is null or b.startAt >= :from) and (:to is null or b.startAt <= :to)
+            """)
+    long countByBookingStatus(BookingAnalyticsStatus bookingStatus, OffsetDateTime from, OffsetDateTime to);
 
-    @Query("select count(distinct b.resourceId) from BookingFactEntity b where b.bookingStatus in :statuses")
-    long countDistinctResourcesUsed(Collection<BookingAnalyticsStatus> statuses);
+    @Query("""
+            select count(b) from BookingFactEntity b
+            where b.bookingStatus in :statuses
+            and (:from is null or b.startAt >= :from) and (:to is null or b.startAt <= :to)
+            """)
+    long countByBookingStatusIn(Collection<BookingAnalyticsStatus> statuses, OffsetDateTime from, OffsetDateTime to);
+
+    @Query("""
+            select count(distinct b.resourceId) from BookingFactEntity b
+            where b.bookingStatus in :statuses
+            and (:from is null or b.startAt >= :from) and (:to is null or b.startAt <= :to)
+            """)
+    long countDistinctResourcesUsed(Collection<BookingAnalyticsStatus> statuses, OffsetDateTime from, OffsetDateTime to);
 
     @Query("select count(b) from BookingFactEntity b where b.bookingStatus = com.teamresource.analytics.domain.BookingAnalyticsStatus.APPROVED and b.startAt between :from and :to")
     long countApprovedBookingsBetween(OffsetDateTime from, OffsetDateTime to);
@@ -24,8 +44,43 @@ public interface BookingFactRepository extends JpaRepository<BookingFactEntity, 
             select coalesce(sum(extract(epoch from (end_at - start_at)) / 60), 0)
             from analytics.booking_facts
             where booking_status = 'APPROVED'
+            and (:from is null or start_at >= :from)
+            and (:to is null or start_at <= :to)
             """, nativeQuery = true)
-    long sumApprovedReservedMinutes();
+    long sumApprovedReservedMinutes(OffsetDateTime from, OffsetDateTime to);
+
+    @Query(value = """
+            select
+                linked_event_id as eventId,
+                sum(case when booking_status in ('APPROVED', 'PENDING_APPROVAL') then 1 else 0 end) as activeBookings,
+                sum(case when booking_status = 'WAITLISTED' then 1 else 0 end) as waitlistedBookings,
+                sum(case when booking_status in ('CANCELLED', 'REJECTED') then 1 else 0 end) as cancelledBookings
+            from analytics.booking_facts
+            where linked_event_id is not null
+            and (:from is null or start_at >= :from)
+            and (:to is null or start_at <= :to)
+            group by linked_event_id
+            order by activeBookings desc, waitlistedBookings desc
+            limit :limit
+            """, nativeQuery = true)
+    List<EventRegistrationProjection> aggregateEventRegistrations(OffsetDateTime from, OffsetDateTime to, int limit);
+
+    @Query(value = """
+            select
+                resource_id as resourceId,
+                count(*) as totalBookings,
+                sum(case when booking_status = 'APPROVED' then 1 else 0 end) as approvedBookings,
+                sum(case when booking_status = 'PENDING_APPROVAL' then 1 else 0 end) as pendingBookings,
+                sum(case when booking_status in ('CANCELLED', 'REJECTED') then 1 else 0 end) as cancelledBookings,
+                coalesce(sum(case when booking_status = 'APPROVED' then extract(epoch from (end_at - start_at)) / 60 else 0 end), 0) as bookedMinutes
+            from analytics.booking_facts
+            where (:from is null or start_at >= :from)
+            and (:to is null or start_at <= :to)
+            group by resource_id
+            order by approvedBookings desc, bookedMinutes desc
+            limit :limit
+            """, nativeQuery = true)
+    List<ResourceUsageProjection> aggregateResourceUsage(OffsetDateTime from, OffsetDateTime to, int limit);
 
     @Query(value = """
             select
@@ -54,5 +109,21 @@ public interface BookingFactRepository extends JpaRepository<BookingFactEntity, 
         long getWaitlistedBookings();
         long getCancelledBookings();
         long getTotalReservedMinutes();
+    }
+
+    interface EventRegistrationProjection {
+        UUID getEventId();
+        long getActiveBookings();
+        long getWaitlistedBookings();
+        long getCancelledBookings();
+    }
+
+    interface ResourceUsageProjection {
+        UUID getResourceId();
+        long getTotalBookings();
+        long getApprovedBookings();
+        long getPendingBookings();
+        long getCancelledBookings();
+        long getBookedMinutes();
     }
 }

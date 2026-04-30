@@ -1,8 +1,10 @@
 package com.teamresource.analytics.service;
 
+import com.teamresource.analytics.api.dto.EventRegistrationMetricResponse;
+import com.teamresource.analytics.api.dto.ResourcePopularityResponse;
+import com.teamresource.analytics.api.dto.ResourceUsageMetricResponse;
 import com.teamresource.analytics.domain.BookingAnalyticsStatus;
 import com.teamresource.analytics.infra.persistence.BookingFactRepository;
-import com.teamresource.analytics.infra.persistence.ResourcePopularityEntity;
 import com.teamresource.analytics.infra.persistence.ResourcePopularityRepository;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -24,46 +26,117 @@ public class DashboardQueryService {
         this.resourcePopularityRepository = resourcePopularityRepository;
     }
 
-    public long totalBookings() {
-        return bookingFactRepository.count();
+    public long totalBookings(OffsetDateTime from, OffsetDateTime to) {
+        return bookingFactRepository.countAll(from, to);
     }
 
-    public long approvedBookings() {
-        return bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.APPROVED);
+    public long approvedBookings(OffsetDateTime from, OffsetDateTime to) {
+        return bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.APPROVED, from, to);
     }
 
-    public long pendingApprovalBookings() {
-        return bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.PENDING_APPROVAL);
+    public long pendingApprovalBookings(OffsetDateTime from, OffsetDateTime to) {
+        return bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.PENDING_APPROVAL, from, to);
     }
 
-    public long waitlistedBookings() {
-        return bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.WAITLISTED);
+    public long waitlistedBookings(OffsetDateTime from, OffsetDateTime to) {
+        return bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.WAITLISTED, from, to);
     }
 
-    public long cancelledOrRejectedBookings() {
-        return bookingFactRepository.countByBookingStatusIn(List.of(BookingAnalyticsStatus.CANCELLED, BookingAnalyticsStatus.REJECTED));
+    public long cancelledOrRejectedBookings(OffsetDateTime from, OffsetDateTime to) {
+        return bookingFactRepository.countByBookingStatusIn(List.of(BookingAnalyticsStatus.CANCELLED, BookingAnalyticsStatus.REJECTED), from, to);
     }
 
-    public long uniqueResourcesUsed() {
+    public long uniqueResourcesUsed(OffsetDateTime from, OffsetDateTime to) {
         return bookingFactRepository.countDistinctResourcesUsed(List.of(
                 BookingAnalyticsStatus.APPROVED,
                 BookingAnalyticsStatus.PENDING_APPROVAL,
                 BookingAnalyticsStatus.WAITLISTED,
                 BookingAnalyticsStatus.CANCELLED,
                 BookingAnalyticsStatus.REJECTED
-        ));
+        ), from, to);
+    }
+
+    public long nextSevenDaysApprovedBookings(OffsetDateTime from, OffsetDateTime to) {
+        OffsetDateTime effectiveFrom = from == null ? OffsetDateTime.now(ZoneOffset.UTC) : from;
+        OffsetDateTime effectiveTo = to == null ? effectiveFrom.plusDays(7) : to;
+        return bookingFactRepository.countApprovedBookingsBetween(effectiveFrom, effectiveTo);
+    }
+
+    public long totalApprovedReservedMinutes(OffsetDateTime from, OffsetDateTime to) {
+        return bookingFactRepository.sumApprovedReservedMinutes(from, to);
+    }
+
+    public List<EventRegistrationMetricResponse> eventRegistrationMetrics(OffsetDateTime from, OffsetDateTime to, int limit) {
+        return bookingFactRepository.aggregateEventRegistrations(from, to, limit).stream()
+                .map(projection -> new EventRegistrationMetricResponse(
+                        projection.getEventId(),
+                        projection.getActiveBookings(),
+                        projection.getWaitlistedBookings(),
+                        projection.getCancelledBookings()
+                ))
+                .toList();
+    }
+
+    public List<ResourceUsageMetricResponse> resourceUsageMetrics(OffsetDateTime from, OffsetDateTime to, int limit) {
+        return bookingFactRepository.aggregateResourceUsage(from, to, limit).stream()
+                .map(projection -> new ResourceUsageMetricResponse(
+                        projection.getResourceId(),
+                        projection.getTotalBookings(),
+                        projection.getApprovedBookings(),
+                        projection.getPendingBookings(),
+                        projection.getCancelledBookings(),
+                        projection.getBookedMinutes()
+                ))
+                .toList();
+    }
+
+    public List<ResourcePopularityResponse> topResources(int limit) {
+        return resourcePopularityRepository.findAllByOrderByPopularityScoreDesc(PageRequest.of(0, limit)).stream()
+                .map(entity -> new ResourcePopularityResponse(
+                        entity.getResourceId(),
+                        entity.getResourceName(),
+                        entity.getResourceType(),
+                        entity.getTotalBookings(),
+                        entity.getApprovedBookings(),
+                        entity.getPendingBookings(),
+                        entity.getWaitlistedBookings(),
+                        entity.getCancelledBookings(),
+                        entity.getTotalReservedMinutes(),
+                        entity.getPopularityScore(),
+                        entity.getLastRefreshedAt()
+                ))
+                .toList();
+    }
+
+    public long totalBookings() {
+        return totalBookings(null, null);
+    }
+
+    public long approvedBookings() {
+        return approvedBookings(null, null);
+    }
+
+    public long pendingApprovalBookings() {
+        return pendingApprovalBookings(null, null);
+    }
+
+    public long waitlistedBookings() {
+        return waitlistedBookings(null, null);
+    }
+
+    public long cancelledOrRejectedBookings() {
+        return cancelledOrRejectedBookings(null, null);
+    }
+
+    public long uniqueResourcesUsed() {
+        return uniqueResourcesUsed(null, null);
     }
 
     public long nextSevenDaysApprovedBookings() {
-        OffsetDateTime from = OffsetDateTime.now(ZoneOffset.UTC);
-        return bookingFactRepository.countApprovedBookingsBetween(from, from.plusDays(7));
+        return nextSevenDaysApprovedBookings(null, null);
     }
 
     public long totalApprovedReservedMinutes() {
-        return bookingFactRepository.sumApprovedReservedMinutes();
-    }
-
-    public List<ResourcePopularityEntity> topResources(int limit) {
-        return resourcePopularityRepository.findAllByOrderByPopularityScoreDesc(PageRequest.of(0, limit));
+        return totalApprovedReservedMinutes(null, null);
     }
 }

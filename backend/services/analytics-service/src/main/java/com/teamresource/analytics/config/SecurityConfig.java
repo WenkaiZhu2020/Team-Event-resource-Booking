@@ -1,5 +1,7 @@
 package com.teamresource.analytics.config;
 
+import com.teamresource.analytics.infra.security.InternalApiKeyFilter;
+import com.teamresource.analytics.infra.security.JsonAuthEntryPoint;
 import com.teamresource.analytics.infra.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,16 +17,24 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            InternalApiKeyFilter internalApiKeyFilter,
+            JsonAuthEntryPoint entryPoint
+    ) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(entryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .requestMatchers("/api/v1/analytics/**").authenticated()
+                        .requestMatchers("/api/v1/internal/**").hasRole("INTERNAL_SERVICE")
+                        .requestMatchers("/api/v1/dashboard/**", "/api/v1/analytics/**").authenticated()
                         .anyRequest().authenticated())
+                .addFilterBefore(internalApiKeyFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
