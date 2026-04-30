@@ -44,9 +44,32 @@ export function EventsPanel(props: EventsPanelProps) {
   } = props;
 
   const registrationsByEvent = Object.fromEntries(myRegistrations.map((item) => [item.eventId, item]));
+  const approvalSensitiveEvents = myEvents.filter((item) => item.status === 'PENDING_APPROVAL').length;
+  const totalCheckIns = myEvents.reduce((sum, item) => sum + item.checkedInCount, 0);
+  const totalWaitlist = publishedEvents.reduce((sum, item) => sum + item.waitlistProjectedCount, 0);
 
   return (
     <div className="stack-grid">
+      <SectionPanel eyebrow="Events" title="Event operations snapshot">
+        <div className="insight-grid three-column">
+          <article className="insight-card accent-green">
+            <small>Published stream</small>
+            <strong>{publishedEvents.length}</strong>
+            <p>Live events visible to members across the workspace.</p>
+          </article>
+          <article className="insight-card accent-amber">
+            <small>Approval-sensitive</small>
+            <strong>{approvalSensitiveEvents}</strong>
+            <p>Organizer-owned events currently waiting for approval-driven release.</p>
+          </article>
+          <article className="insight-card accent-blue">
+            <small>Attendance activity</small>
+            <strong>{totalCheckIns}</strong>
+            <p>Completed check-ins across owned events, with {totalWaitlist} visible waitlist positions in the broader event catalog.</p>
+          </article>
+        </div>
+      </SectionPanel>
+
       <SectionPanel
         eyebrow="Events"
         title="Published events"
@@ -56,16 +79,24 @@ export function EventsPanel(props: EventsPanelProps) {
           {publishedEvents.map((item) => {
             const registration = registrationsByEvent[item.eventId];
             return (
-              <article className="list-card action-card" key={item.eventId}>
+              <article className="list-card action-card showcase-card" key={item.eventId}>
                 <div>
                   <strong>{item.title}</strong>
                   <p>{item.category} · {item.location}</p>
-                  <p>
-                    {item.status} · {item.attendeeProjectedCount}/{item.capacity} attendees · {item.waitlistProjectedCount} waitlisted · {item.checkedInCount} checked in
-                  </p>
+                  <div className="micro-stat-row">
+                    <span>{item.status}</span>
+                    <span>{item.attendeeProjectedCount}/{item.capacity} attendees</span>
+                    <span>{item.waitlistProjectedCount} waitlisted</span>
+                    <span>{item.checkedInCount} checked in</span>
+                  </div>
+                  <p>{item.description ?? 'Published event with live registration and attendance tracking.'}</p>
                 </div>
-                <div className="button-row">
+                <div className="showcase-rail">
                   <span className="status-pill">{registration ? registration.status : 'OPEN'}</span>
+                  <div className="showcase-meter">
+                    <label>Registration window</label>
+                    <strong>{item.registrationCloseAt ? 'Open / scheduled close' : 'Always open in current data'}</strong>
+                  </div>
                   {!registration || registration.status === 'CANCELLED' ? (
                     <button className="secondary-button" type="button" disabled={loading} onClick={() => onRegister(item.eventId)}>
                       Register
@@ -102,13 +133,22 @@ export function EventsPanel(props: EventsPanelProps) {
       <SectionPanel eyebrow="Events" title="My events">
         <div className="card-list">
           {myEvents.map((item) => (
-            <article className="list-card action-card" key={item.eventId}>
+            <article className="list-card action-card showcase-card" key={item.eventId}>
               <div>
                 <strong>{item.title}</strong>
-                <p>{item.status} · Capacity {item.capacity}</p>
-                <p>{item.attendeeProjectedCount} attendees · {item.waitlistProjectedCount} waitlisted · {item.checkedInCount} checked in</p>
+                <p>{item.category} · {item.location}</p>
+                <div className="micro-stat-row">
+                  <span>{item.status}</span>
+                  <span>Capacity {item.capacity}</span>
+                  <span>{item.attendeeProjectedCount} attendees</span>
+                  <span>{item.waitlistProjectedCount} waitlisted</span>
+                  <span>{item.checkedInCount} checked in</span>
+                </div>
+                <p>
+                  This card reflects event lifecycle handling, organizer ownership, and operational projections used by registration and check-in flows.
+                </p>
               </div>
-              <div className="button-row">
+              <div className="showcase-rail">
                 {item.status === 'DRAFT' ? (
                   <button className="secondary-button" type="button" disabled={loading} onClick={() => onPublish(item.eventId)}>
                     Publish
@@ -201,6 +241,32 @@ export function EventsPanel(props: EventsPanelProps) {
           </label>
           <button className="primary-button" type="submit" disabled={loading}>Create event</button>
         </form>
+      </SectionPanel>
+
+      <SectionPanel eyebrow="Engineering" title="Event-system mechanics shown by this page">
+        <div className="insight-grid">
+          <article className="insight-card">
+            <small>Lifecycle state</small>
+            <strong>Draft to publish to approval</strong>
+            <p>
+              Event status transitions are visible through organizer-owned cards, including approval-sensitive publication for large events.
+            </p>
+          </article>
+          <article className="insight-card">
+            <small>Projection support</small>
+            <strong>Attendance, waitlist, check-in</strong>
+            <p>
+              Each event surface includes attendee, waitlist, and check-in projections so the UI reflects operational state rather than static event metadata.
+            </p>
+          </article>
+          <article className="insight-card">
+            <small>Operational callback chain</small>
+            <strong>Workflow-linked publication</strong>
+            <p>
+              Large events can enter approval paths, with decision callbacks feeding back into the event lifecycle before organizers see final published state.
+            </p>
+          </article>
+        </div>
       </SectionPanel>
     </div>
   );

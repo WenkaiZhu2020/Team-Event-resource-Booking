@@ -105,6 +105,8 @@ public class NotificationDispatchService {
             NotificationChannel channel,
             NotificationPreferenceEntity preference
     ) {
+        // Persist idempotency at the notification record level so repeated event delivery
+        // reuses the same logical notification instead of creating channel duplicates.
         String idempotencyKey = command.idempotencyKey() + ":" + channel.name();
         NotificationEntity existing = notificationRepository.findByIdempotencyKey(idempotencyKey).orElse(null);
         if (existing != null) {
@@ -193,6 +195,8 @@ public class NotificationDispatchService {
         notification.setLastError(result.errorMessage());
         notification.setUpdatedAt(now);
 
+        // Retry scheduling stays data-driven so failed deliveries can be replayed by the scheduler
+        // without coupling senders to timer logic.
         if (notification.getRetryCount() >= notification.getMaxRetries()) {
             notification.setNextRetryAt(null);
         } else {

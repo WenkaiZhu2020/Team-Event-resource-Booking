@@ -44,7 +44,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Claims claims = jwtService.parse(authHeader.substring(7));
             Object rolesClaim = claims.get("roles");
             Collection<SimpleGrantedAuthority> authorities = rolesClaim instanceof List<?> roles
-                    ? roles.stream().map(String::valueOf).map(SimpleGrantedAuthority::new).collect(Collectors.toList())
+                    ? roles.stream()
+                            .map(String::valueOf)
+                            .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
+                            .map(SimpleGrantedAuthority::new)
+                            .collect(Collectors.toList())
                     : List.of();
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     claims.getSubject(),

@@ -10,6 +10,7 @@ import { EventsPage } from '../pages/EventsPage';
 import { NotificationsPage } from '../pages/NotificationsPage';
 import { OAuthCallbackPage } from '../pages/OAuthCallbackPage';
 import { ResourcesPage } from '../pages/ResourcesPage';
+import { SystemPage } from '../pages/SystemPage';
 import { ProtectedRoute } from './ProtectedRoute';
 
 export function AppRouter() {
@@ -31,6 +32,7 @@ export function AppRouter() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="system" element={<SystemPage />} />
         <Route path="account" element={<AccountPage />} />
         <Route path="events" element={<EventsPage />} />
         <Route path="resources" element={<ResourcesPage />} />

@@ -1,134 +1,59 @@
 # Team Resource Management System
 
-An internal platform for teams and organizations to manage events and reserve shared resources with a microservices architecture.
+Team Resource Management System is a full-stack microservices project for internal teams, labs, university groups, and organizations that need to manage events, reserve shared resources, route approvals, notify users, and monitor operational usage from one platform.
 
-## Tech Stack
-- Backend: Java 21 + Spring Boot
-- Frontend: React + TypeScript + Vite
+## Stack
+- Backend: Java 21, Spring Boot, Spring Security, Spring Cloud Gateway
+- Frontend: React, TypeScript, Vite
 - Database: PostgreSQL
 - Messaging: RabbitMQ
-- API Gateway: Spring Cloud Gateway
+- API documentation: Swagger / OpenAPI
+- Local orchestration: Docker Compose
 
 ## Monorepo Structure
-- `backend/` backend microservices
-- `frontend/` frontend application
-- `infra/` local infrastructure setup
-- `docs/` business, engineering, and refactoring notes
+- `backend/`: Spring Boot microservices and the backend parent build
+- `frontend/`: React application
+- `infra/`: supporting local infrastructure assets
+- `docs/`: architecture, stage refactoring, and engineering notes
 
-## Current Scope
-- `frontend`
-  - Login and registration UI
-  - Profile and notification preference workspace
-  - Event list and event creation workflow
-  - Resource catalog, booking form, notification inbox, approval inbox
-  - JWT storage and API client integration
-- `auth-service`
-  - `POST /api/v1/auth/register`
-  - `POST /api/v1/auth/login`
-  - `GET /api/v1/auth/oauth2/google/authorize`
-  - `GET /api/v1/auth/me`
-  - JWT issuing and validation
-  - Google OAuth2 browser login callback flow
-  - PostgreSQL persistence + Flyway migration
-  - Swagger UI: `http://localhost:8081/swagger-ui.html`
-- `user-service`
-  - `GET /api/v1/users/me`
-  - `PUT /api/v1/users/me`
-  - `GET /api/v1/preferences/notifications`
-  - `PUT /api/v1/preferences/notifications`
-  - Internal provisioning endpoint for auth registration
-  - PostgreSQL persistence + Flyway migration
-  - Swagger UI: `http://localhost:8082/swagger-ui.html`
-- `event-service`
-  - `POST /api/v1/events`
-  - `PUT /api/v1/events/{eventId}`
-  - `GET /api/v1/events`
-  - `GET /api/v1/events/me`
-  - `GET /api/v1/events/{eventId}`
-  - `POST /api/v1/events/{eventId}/publish`
-  - `POST /api/v1/events/{eventId}/cancel`
-  - `POST /api/v1/events/{eventId}/registrations`
-  - `POST /api/v1/events/{eventId}/registrations/cancel`
-  - `GET /api/v1/events/{eventId}/registrations/me`
-  - `GET /api/v1/events/registrations/me`
-  - `GET /api/v1/events/{eventId}/registrations`
-  - `POST /api/v1/events/{eventId}/registrations/{registrationId}/check-in`
-  - `GET /api/v1/internal/events/reminders/due`
-  - Organizer ownership, draft/publish/cancel lifecycle, event registration, waitlist promotion, attendee/waitlist/check-in projections
-  - PostgreSQL persistence + Flyway migration
-  - Swagger UI: `http://localhost:8083/swagger-ui.html`
-- `resource-service`
-  - `POST /api/v1/resources`
-  - `PUT /api/v1/resources/{resourceId}`
-  - `GET /api/v1/resources`
-  - `GET /api/v1/resources/me`
-  - `GET /api/v1/resources/{resourceId}`
-  - `POST /api/v1/resources/{resourceId}/activate`
-  - `POST /api/v1/resources/{resourceId}/deactivate`
-  - `POST /api/v1/resources/{resourceId}/maintenance`
-  - `DELETE /api/v1/resources/{resourceId}/maintenance/{slotId}`
-  - Resource catalog, policy defaults, approval mode settings, maintenance windows
-  - PostgreSQL persistence + Flyway migration
-  - Swagger UI: `http://localhost:8084/swagger-ui.html`
-- `booking-service`
-  - `POST /api/v1/bookings`
-  - `GET /api/v1/bookings/me`
-  - `GET /api/v1/bookings/{bookingId}`
-  - `POST /api/v1/bookings/{bookingId}/cancel`
-  - `GET /api/v1/bookings/approvals/pending`
-  - `POST /api/v1/bookings/{bookingId}/approve`
-  - `POST /api/v1/bookings/{bookingId}/reject`
-  - Concurrency-safe resource locking, approval-aware booking states, waitlist promotion, idempotency key support, outbox records
-  - Synchronous integration with `resource-service` and `event-service`
-  - PostgreSQL persistence + Flyway migration
-  - Swagger UI: `http://localhost:8085/swagger-ui.html`
-- `notification-service`
-  - `GET /api/v1/notifications/me`
-  - `GET /api/v1/notifications/me/unread-count`
-  - `POST /api/v1/notifications/{notificationId}/read`
-  - RabbitMQ consumer for `booking.*` domain events
-  - Scheduled event reminders pulled from `event-service`
-  - In-app and email-simulation channels
-  - Processed-event idempotency tracking
-  - PostgreSQL persistence + Flyway migration
-  - Swagger UI: `http://localhost:8086/swagger-ui.html`
-- `workflow-service`
-  - `POST /api/v1/internal/workflows/approvals`
-  - `GET /api/v1/workflows/approvals/pending`
-  - `GET /api/v1/workflows/approvals/requested`
-  - `GET /api/v1/workflows/approvals/{approvalId}`
-  - `POST /api/v1/workflows/approvals/{approvalId}/approve`
-  - `POST /api/v1/workflows/approvals/{approvalId}/reject`
-  - Booking approval ownership, decision history, internal booking callback
-  - PostgreSQL persistence + Flyway migration
-  - Swagger UI: `http://localhost:8087/swagger-ui.html`
-- `analytics-service`
-  - `GET /api/v1/analytics/dashboard/overview`
-  - `GET /api/v1/analytics/dashboard/resources/popular`
-  - `POST /api/v1/analytics/admin/resource-popularity/refresh`
-  - RabbitMQ consumer for `booking.*` domain events
-  - Idempotent event consumption, booking fact aggregation, scheduled popularity refresh
-  - Parallel dashboard aggregation with `CompletableFuture`
-  - PostgreSQL persistence + Flyway migration
-  - Swagger UI: `http://localhost:8088/swagger-ui.html`
-- `api-gateway-service`
-  - Routes `/api/v1/auth/**` to `auth-service`
-  - Routes `/oauth2/**` and `/login/oauth2/**` to `auth-service`
-  - Routes `/api/v1/users/**` and `/api/v1/preferences/**` to `user-service`
-  - Routes `/api/v1/events/**` to `event-service`
-  - Routes `/api/v1/resources/**` to `resource-service`
-  - Routes `/api/v1/bookings/**` to `booking-service`
-  - Routes `/api/v1/notifications/**` to `notification-service`
-  - Routes `/api/v1/workflows/**` to `workflow-service`
-  - Routes `/api/v1/analytics/**` to `analytics-service`
+## Backend Services
+- `api-gateway-service`: route entry, JWT-aware request filtering, gateway error handling
+- `auth-service`: email/password auth, Google OAuth2 login, JWT issuing, refresh/session operations
+- `user-service`: user profile, preference management, role-aware metadata support
+- `event-service`: event lifecycle, registration, waitlist, check-in
+- `resource-service`: resource catalog, policy rules, availability, maintenance windows
+- `booking-service`: conflict-safe booking, approval-aware lifecycle, waitlist promotion
+- `notification-service`: in-app and email-style notification delivery, reminder scheduling
+- `workflow-service`: approval orchestration and callback handling
+- `analytics-service`: dashboard queries and usage aggregation
 
-## Local Run
-1. Copy env file
+## Frontend Scope
+- authentication and Google OAuth callback
+- role-aware navigation shell
+- dashboard, events, resources, bookings, approvals, notifications, account pages
+- JWT-based API integration through the gateway
+
+## Local Quick Start
+1. Create a local environment file.
    - `cp .env.example .env`
-2. Build backend jars
+2. Build backend artifacts.
    - `mvn -f backend/pom.xml -DskipTests package`
-3. Start services
+3. Start the full stack.
    - `docker compose up -d --build`
+4. Open the main entry points.
+   - frontend: `http://localhost:5173`
+   - gateway: `http://localhost:8080`
+   - RabbitMQ management: `http://localhost:15672`
+5. Wait for cold-start services to finish booting before doing end-to-end checks.
+   - `docker compose ps`
+   - `curl http://localhost:8080/actuator/health`
+   - `curl http://localhost:8081/actuator/health`
+
+## Notes About Compose
+- `.env.example` includes `COMPOSE_PROJECT_NAME=trms` so local Compose commands do not fail with `project name must not be empty`.
+- If you do not want to copy `.env.example` first, use:
+  - `docker compose --env-file .env.example -p trms up -d --build`
+- On a cold build, some backend services can take roughly 30 to 45 seconds to become ready after the containers show `Started`.
 
 ## Service Ports
 - `8080`: API gateway
@@ -141,18 +66,18 @@ An internal platform for teams and organizations to manage events and reserve sh
 - `8087`: workflow-service
 - `8088`: analytics-service
 
-## Notes About Compose
-- `.env.example` includes `COMPOSE_PROJECT_NAME=trms` so local Compose commands do not fail with an empty project name.
-- If you do not want to copy `.env.example` first, use:
-  - `docker compose --env-file .env.example -p trms up -d --build`
-- On a cold build, some backend services can take roughly 30 to 45 seconds to become ready after the containers show `Started`.
-
 ## GitHub Actions
 - `.github/workflows/ci.yml`: backend tests and frontend build for pull requests and non-main branch pushes
 - `.github/workflows/release-package.yml`: backend tests, backend packaging, frontend build, artifact upload, and Docker image build checks for `main`
 
 ## Validation Status
+The main branch has been checked with:
+- backend service tests
+- frontend production build
+- compose configuration validation
+
 Recent local validation includes:
+- `mvn -f backend/pom.xml -pl services/booking-service,services/notification-service test -DskipITs`
 - `mvn -f backend/pom.xml test -DskipITs`
 - `npm run build`
 
@@ -177,3 +102,8 @@ Recent local validation includes:
 - If gateway requests return connection errors right after `docker compose up`, wait for downstream services such as `auth-service` and `booking-service` to finish their first cold start.
 - If the frontend shows unauthorized responses after a schema or auth change, clear local storage and sign in again.
 - If notification tests log RabbitMQ connection refused during local unit testing, that is expected when the broker is not started and does not indicate a failing test by itself.
+
+## Current Priority Areas
+- keep cross-service integration contracts stable
+- preserve booking and approval correctness under concurrent load
+- improve internal layering where the business logic is already rich enough to justify it
