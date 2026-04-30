@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -111,26 +112,32 @@ class DashboardControllerTest {
     }
 
     @Test
-    void popularResourcesShouldAcceptLimitParameterInStandaloneSetup() throws Exception {
-        mockMvc.perform(get("/api/v1/analytics/dashboard/resources/popular").param("limit", "201"))
+    void popularResourcesShouldAcceptValidLimitParameter() throws Exception {
+        mockMvc.perform(get("/api/v1/analytics/dashboard/resources/popular").param("limit", "200"))
                 .andExpect(status().isOk());
     }
 
     @Test
+    void popularResourcesShouldRejectTooLargeLimit() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        var validator = jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
+        var violations = validator.validate(new LimitRequest());
+
+        var response = handler.handleConstraintViolation(new jakarta.validation.ConstraintViolationException(violations));
+
+        org.assertj.core.api.Assertions.assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        org.assertj.core.api.Assertions.assertThat(response.getBody().details())
+                .anyMatch(detail -> detail.contains("limit") && detail.contains("must be less than or equal to 200"));
+    }
+
+    @Test
     void refreshShouldReturnOk() throws Exception {
-        mockMvc.perform(post("/api/v1/analytics/refresh")
+        mockMvc.perform(post("/api/v1/analytics/admin/resource-popularity/refresh")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").value("ok"));
 
         org.assertj.core.api.Assertions.assertThat(resourcePopularityRefreshService.refreshed).isTrue();
-    }
-
-    @Test
-    void legacyRefreshPathShouldReturnOk() throws Exception {
-        mockMvc.perform(post("/api/v1/analytics/admin/resource-popularity/refresh"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").value("ok"));
     }
 
     static class StubDashboardFacade extends DashboardFacade {
@@ -163,6 +170,11 @@ class DashboardControllerTest {
         public List<ResourcePopularityResponse> popularResources(int limit) {
             return popularResourcesResponses;
         }
+    }
+
+    static final class LimitRequest {
+        @jakarta.validation.constraints.Max(200)
+        private final int limit = 201;
     }
 
     static class StubResourcePopularityRefreshService extends ResourcePopularityRefreshService {

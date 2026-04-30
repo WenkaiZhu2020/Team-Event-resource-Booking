@@ -6,6 +6,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.List;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -30,7 +32,9 @@ public class InternalApiKeyFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         if (antPathMatcher.match("/api/v1/internal/**", request.getRequestURI())) {
             String headerValue = request.getHeader(properties.keyHeaderName());
-            if (StringUtils.hasText(headerValue) && headerValue.equals(properties.keyValue())) {
+            if (StringUtils.hasText(headerValue) && MessageDigest.isEqual(
+                    headerValue.getBytes(StandardCharsets.UTF_8),
+                    properties.keyValue().getBytes(StandardCharsets.UTF_8))) {
                 var auth = new UsernamePasswordAuthenticationToken(
                         "internal-service",
                         null,

@@ -17,7 +17,7 @@ public class AnalyticsAdminController {
         this.resourcePopularityRefreshService = resourcePopularityRefreshService;
     }
 
-    @PostMapping({"/refresh", "/admin/resource-popularity/refresh"})
+    @PostMapping("/admin/resource-popularity/refresh")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<String> refresh() {
         resourcePopularityRefreshService.refresh();

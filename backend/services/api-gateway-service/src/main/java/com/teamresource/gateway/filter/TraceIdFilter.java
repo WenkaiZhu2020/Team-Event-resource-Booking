@@ -19,9 +19,13 @@ public class TraceIdFilter implements GlobalFilter, Ordered {
         if (traceId == null || traceId.isBlank()) {
             traceId = UUID.randomUUID().toString();
         }
-        exchange.getAttributes().put(TRACE_ID_HEADER, traceId);
-        exchange.getResponse().getHeaders().add(TRACE_ID_HEADER, traceId);
-        return chain.filter(exchange);
+        String propagatedTraceId = traceId;
+        ServerWebExchange mutatedExchange = exchange.mutate()
+                .request(request -> request.headers(headers -> headers.set(TRACE_ID_HEADER, propagatedTraceId)))
+                .build();
+        mutatedExchange.getAttributes().put(TRACE_ID_HEADER, propagatedTraceId);
+        mutatedExchange.getResponse().getHeaders().set(TRACE_ID_HEADER, propagatedTraceId);
+        return chain.filter(mutatedExchange);
     }
 
     @Override

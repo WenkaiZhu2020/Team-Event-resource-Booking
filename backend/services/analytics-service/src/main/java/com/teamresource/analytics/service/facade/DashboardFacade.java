@@ -75,8 +75,4 @@ public class DashboardFacade {
     public List<ResourcePopularityResponse> popularResources(int limit) {
         return dashboardQueryService.topResources(limit);
     }
-
-    public List<ResourcePopularityResponse> topResources(int limit) {
-        return popularResources(limit);
-    }
 }

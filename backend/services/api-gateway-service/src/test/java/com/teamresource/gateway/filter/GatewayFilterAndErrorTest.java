@@ -21,22 +21,37 @@ class GatewayFilterAndErrorTest {
                 MockServerHttpRequest.get("/gateway").header(TraceIdFilter.TRACE_ID_HEADER, "existing-trace")
         );
 
-        filter.filter(exchangeWithHeader, ex -> Mono.empty()).block();
+        final String[] downstreamHeader = new String[1];
+        filter.filter(exchangeWithHeader, ex -> {
+            downstreamHeader[0] = ex.getRequest().getHeaders().getFirst(TraceIdFilter.TRACE_ID_HEADER);
+            return Mono.empty();
+        }).block();
 
         assertThat(exchangeWithHeader.getResponse().getHeaders().getFirst(TraceIdFilter.TRACE_ID_HEADER)).isEqualTo("existing-trace");
+        assertThat(downstreamHeader[0]).isEqualTo("existing-trace");
         assertThat(filter.getOrder()).isEqualTo(Integer.MIN_VALUE);
 
         MockServerWebExchange exchangeWithoutHeader = MockServerWebExchange.from(MockServerHttpRequest.get("/gateway"));
-        filter.filter(exchangeWithoutHeader, ex -> Mono.empty()).block();
+        final String[] generatedDownstreamHeader = new String[1];
+        filter.filter(exchangeWithoutHeader, ex -> {
+            generatedDownstreamHeader[0] = ex.getRequest().getHeaders().getFirst(TraceIdFilter.TRACE_ID_HEADER);
+            return Mono.empty();
+        }).block();
 
         assertThat(exchangeWithoutHeader.getResponse().getHeaders().getFirst(TraceIdFilter.TRACE_ID_HEADER)).isNotBlank();
+        assertThat(generatedDownstreamHeader[0]).isEqualTo(exchangeWithoutHeader.getResponse().getHeaders().getFirst(TraceIdFilter.TRACE_ID_HEADER));
 
         MockServerWebExchange exchangeWithBlankHeader = MockServerWebExchange.from(
                 MockServerHttpRequest.get("/gateway").header(TraceIdFilter.TRACE_ID_HEADER, "   ")
         );
-        filter.filter(exchangeWithBlankHeader, ex -> Mono.empty()).block();
+        final String[] blankDownstreamHeader = new String[1];
+        filter.filter(exchangeWithBlankHeader, ex -> {
+            blankDownstreamHeader[0] = ex.getRequest().getHeaders().getFirst(TraceIdFilter.TRACE_ID_HEADER);
+            return Mono.empty();
+        }).block();
 
         assertThat(exchangeWithBlankHeader.getResponse().getHeaders().getFirst(TraceIdFilter.TRACE_ID_HEADER)).isNotBlank();
+        assertThat(blankDownstreamHeader[0]).isEqualTo(exchangeWithBlankHeader.getResponse().getHeaders().getFirst(TraceIdFilter.TRACE_ID_HEADER));
     }
 
     @Test

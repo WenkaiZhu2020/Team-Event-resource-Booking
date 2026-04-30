@@ -62,7 +62,6 @@ class DashboardFacadeTest {
         assertThat(facade.eventRegistrations(from, to, 10)).containsExactlyElementsOf(eventRegistrations);
         assertThat(facade.resourceUsage(from, to, 10)).containsExactlyElementsOf(resourceUsage);
         assertThat(facade.popularResources(10)).containsExactlyElementsOf(popularResources);
-        assertThat(facade.topResources(10)).containsExactlyElementsOf(popularResources);
     }
 
     static class StubDashboardQueryService extends DashboardQueryService {
