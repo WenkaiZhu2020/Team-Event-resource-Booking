@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class DashboardQueryService {
+    private static final OffsetDateTime MIN_WINDOW = OffsetDateTime.parse("2000-01-01T00:00:00Z");
+    private static final OffsetDateTime MAX_WINDOW = OffsetDateTime.parse("2100-01-01T00:00:00Z");
 
     private final BookingFactRepository bookingFactRepository;
     private final ResourcePopularityRepository resourcePopularityRepository;
@@ -27,23 +29,27 @@ public class DashboardQueryService {
     }
 
     public long totalBookings(OffsetDateTime from, OffsetDateTime to) {
-        return bookingFactRepository.countAll(from, to);
+        return bookingFactRepository.countAll(effectiveFrom(from), effectiveTo(to));
     }
 
     public long approvedBookings(OffsetDateTime from, OffsetDateTime to) {
-        return bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.APPROVED, from, to);
+        return bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.APPROVED, effectiveFrom(from), effectiveTo(to));
     }
 
     public long pendingApprovalBookings(OffsetDateTime from, OffsetDateTime to) {
-        return bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.PENDING_APPROVAL, from, to);
+        return bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.PENDING_APPROVAL, effectiveFrom(from), effectiveTo(to));
     }
 
     public long waitlistedBookings(OffsetDateTime from, OffsetDateTime to) {
-        return bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.WAITLISTED, from, to);
+        return bookingFactRepository.countByBookingStatus(BookingAnalyticsStatus.WAITLISTED, effectiveFrom(from), effectiveTo(to));
     }
 
     public long cancelledOrRejectedBookings(OffsetDateTime from, OffsetDateTime to) {
-        return bookingFactRepository.countByBookingStatusIn(List.of(BookingAnalyticsStatus.CANCELLED, BookingAnalyticsStatus.REJECTED), from, to);
+        return bookingFactRepository.countByBookingStatusIn(
+                List.of(BookingAnalyticsStatus.CANCELLED, BookingAnalyticsStatus.REJECTED),
+                effectiveFrom(from),
+                effectiveTo(to)
+        );
     }
 
     public long uniqueResourcesUsed(OffsetDateTime from, OffsetDateTime to) {
@@ -53,7 +59,7 @@ public class DashboardQueryService {
                 BookingAnalyticsStatus.WAITLISTED,
                 BookingAnalyticsStatus.CANCELLED,
                 BookingAnalyticsStatus.REJECTED
-        ), from, to);
+        ), effectiveFrom(from), effectiveTo(to));
     }
 
     public long nextSevenDaysApprovedBookings(OffsetDateTime from, OffsetDateTime to) {
@@ -63,11 +69,11 @@ public class DashboardQueryService {
     }
 
     public long totalApprovedReservedMinutes(OffsetDateTime from, OffsetDateTime to) {
-        return bookingFactRepository.sumApprovedReservedMinutes(from, to);
+        return bookingFactRepository.sumApprovedReservedMinutes(effectiveFrom(from), effectiveTo(to));
     }
 
     public List<EventRegistrationMetricResponse> eventRegistrationMetrics(OffsetDateTime from, OffsetDateTime to, int limit) {
-        return bookingFactRepository.aggregateEventRegistrations(from, to, limit).stream()
+        return bookingFactRepository.aggregateEventRegistrations(effectiveFrom(from), effectiveTo(to), limit).stream()
                 .map(projection -> new EventRegistrationMetricResponse(
                         projection.getEventId(),
                         projection.getActiveBookings(),
@@ -78,7 +84,7 @@ public class DashboardQueryService {
     }
 
     public List<ResourceUsageMetricResponse> resourceUsageMetrics(OffsetDateTime from, OffsetDateTime to, int limit) {
-        return bookingFactRepository.aggregateResourceUsage(from, to, limit).stream()
+        return bookingFactRepository.aggregateResourceUsage(effectiveFrom(from), effectiveTo(to), limit).stream()
                 .map(projection -> new ResourceUsageMetricResponse(
                         projection.getResourceId(),
                         projection.getTotalBookings(),
@@ -138,5 +144,13 @@ public class DashboardQueryService {
 
     public long totalApprovedReservedMinutes() {
         return totalApprovedReservedMinutes(null, null);
+    }
+
+    private OffsetDateTime effectiveFrom(OffsetDateTime from) {
+        return from == null ? MIN_WINDOW : from;
+    }
+
+    private OffsetDateTime effectiveTo(OffsetDateTime to) {
+        return to == null ? MAX_WINDOW : to;
     }
 }

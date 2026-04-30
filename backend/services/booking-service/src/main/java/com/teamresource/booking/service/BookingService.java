@@ -307,6 +307,8 @@ public class BookingService {
     }
 
     private void acquireResourceLock(UUID resourceId) {
+        // The bootstrap step handles the "first writer for this resource" race once.
+        // After that, the repository method takes the actual pessimistic lock used by booking writes.
         bookingLockBootstrapService.ensureLockExists(resourceId);
         bookingLockRepository.lockByResourceId(resourceId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to acquire booking lock"));
