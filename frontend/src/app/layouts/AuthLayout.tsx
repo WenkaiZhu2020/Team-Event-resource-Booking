@@ -8,7 +8,7 @@ export function AuthLayout() {
           <p className="eyebrow">Team Resource</p>
           <h1>Management Console</h1>
           <p className="helper-copy">
-            Unified workspace for event coordination, resource booking, approvals, notifications, and analytics.
+            Events, resources, approvals, notifications, and reporting.
           </p>
           <div className="auth-feature-grid">
             <article>

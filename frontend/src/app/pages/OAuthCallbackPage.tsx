@@ -15,7 +15,7 @@ export function OAuthCallbackPage() {
     <section className="panel auth-panel">
       <p className="eyebrow">OAuth2</p>
       <h3>{oauthHandling ? 'Completing sign-in' : 'Redirecting'}</h3>
-      <p className="helper-copy">The platform is processing the Google sign-in response.</p>
+      <p className="helper-copy">Finishing Google sign-in.</p>
       <Notice message={error} tone="error" />
     </section>
   );

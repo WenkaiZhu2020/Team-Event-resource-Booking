@@ -21,7 +21,7 @@ export function ApprovalsPage() {
         <section className="panel">
           <p className="eyebrow">Workflow</p>
           <h3>Access restricted</h3>
-          <p className="helper-copy">Approvals are visible only to resource managers and administrators.</p>
+          <p className="helper-copy">You do not have access to this page.</p>
         </section>
       )}
     </>

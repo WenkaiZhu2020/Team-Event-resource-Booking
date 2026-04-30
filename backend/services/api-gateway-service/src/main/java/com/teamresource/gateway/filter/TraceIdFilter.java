@@ -15,14 +15,17 @@ public class TraceIdFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        String traceId = exchange.getRequest().getHeaders().getFirst(TRACE_ID_HEADER);
-        if (traceId == null || traceId.isBlank()) {
-            traceId = UUID.randomUUID().toString();
-        }
+        String requestTraceId = exchange.getRequest().getHeaders().getFirst(TRACE_ID_HEADER);
+        String traceId = (requestTraceId == null || requestTraceId.isBlank())
+                ? UUID.randomUUID().toString()
+                : requestTraceId;
 
         exchange.getAttributes().put(TRACE_ID_HEADER, traceId);
         exchange.getResponse().getHeaders().set(TRACE_ID_HEADER, traceId);
-        return chain.filter(exchange);
+        ServerWebExchange mutatedExchange = exchange.mutate()
+                .request(builder -> builder.headers(headers -> headers.set(TRACE_ID_HEADER, traceId)))
+                .build();
+        return chain.filter(mutatedExchange);
     }
 
     @Override
