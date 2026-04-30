@@ -13,6 +13,7 @@ An internal platform for teams and organizations to manage events and reserve sh
 - `backend/` backend microservices
 - `frontend/` frontend application
 - `infra/` local infrastructure setup
+- `docs/` business, engineering, and refactoring notes
 
 ## Current Scope
 - `frontend`
@@ -127,14 +128,52 @@ An internal platform for teams and organizations to manage events and reserve sh
 2. Build backend jars
    - `mvn -f backend/pom.xml -DskipTests package`
 3. Start services
-   - ``docker compose up -d --build``
+   - `docker compose up -d --build`
 
-Gateway URL: `http://localhost:8080`
-Auth URL: `http://localhost:8081`
-User URL: `http://localhost:8082`
-Event URL: `http://localhost:8083`
-Resource URL: `http://localhost:8084`
-Booking URL: `http://localhost:8085`
-Notification URL: `http://localhost:8086`
-Workflow URL: `http://localhost:8087`
-Analytics URL: `http://localhost:8088`
+## Service Ports
+- `8080`: API gateway
+- `8081`: auth-service
+- `8082`: user-service
+- `8083`: event-service
+- `8084`: resource-service
+- `8085`: booking-service
+- `8086`: notification-service
+- `8087`: workflow-service
+- `8088`: analytics-service
+
+## Notes About Compose
+- `.env.example` includes `COMPOSE_PROJECT_NAME=trms` so local Compose commands do not fail with an empty project name.
+- If you do not want to copy `.env.example` first, use:
+  - `docker compose --env-file .env.example -p trms up -d --build`
+- On a cold build, some backend services can take roughly 30 to 45 seconds to become ready after the containers show `Started`.
+
+## GitHub Actions
+- `.github/workflows/ci.yml`: backend tests and frontend build for pull requests and non-main branch pushes
+- `.github/workflows/release-package.yml`: backend tests, backend packaging, frontend build, artifact upload, and Docker image build checks for `main`
+
+## Validation Status
+Recent local validation includes:
+- `mvn -f backend/pom.xml test -DskipITs`
+- `npm run build`
+
+## Main Business Flows
+- register or sign in, then access a role-aware workspace
+- create and publish events
+- register for events and handle waitlist promotion
+- create and manage shared resources
+- submit resource bookings with conflict-safe approval-aware rules
+- review approvals and route final decisions back into booking or event state
+- deliver user notifications and reminders
+- view dashboard metrics and resource usage trends
+
+## Documentation
+- [V1 business capability overview](./docs/v1-business-capability-overview.md)
+- [V2 business capability overview](./docs/v2-business-capability-overview.md)
+- [Stage 2 refactoring summary](./docs/stage2-refactoring.md)
+- [Engineering assessment and optimization backlog](./docs/engineering-assessment.md)
+
+## Troubleshooting
+- If Compose fails immediately, verify that `.env` exists or pass `--env-file .env.example -p trms`.
+- If gateway requests return connection errors right after `docker compose up`, wait for downstream services such as `auth-service` and `booking-service` to finish their first cold start.
+- If the frontend shows unauthorized responses after a schema or auth change, clear local storage and sign in again.
+- If notification tests log RabbitMQ connection refused during local unit testing, that is expected when the broker is not started and does not indicate a failing test by itself.
