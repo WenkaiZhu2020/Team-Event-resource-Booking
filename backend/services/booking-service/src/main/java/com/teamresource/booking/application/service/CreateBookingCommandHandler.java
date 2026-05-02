@@ -12,11 +12,11 @@ import com.teamresource.booking.domain.model.BookingStatus;
 import com.teamresource.booking.domain.model.IdempotencyStatus;
 import com.teamresource.booking.domain.repository.BookingRepository;
 import com.teamresource.booking.domain.repository.IdempotencyRepository;
-import com.teamresource.booking.domain.repository.ResourceBookingLockRepository;
 import com.teamresource.booking.domain.repository.WaitlistRepository;
 import com.teamresource.booking.infrastructure.persistence.entity.BookingEntity;
 import com.teamresource.booking.infrastructure.persistence.entity.BookingIdempotencyKeyEntity;
 import com.teamresource.booking.infrastructure.persistence.entity.WaitlistEntryEntity;
+import com.teamresource.booking.lock.ResourceLockService;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -36,7 +36,7 @@ public class CreateBookingCommandHandler {
 
     private final BookingRepository bookingRepository;
     private final WaitlistRepository waitlistRepository;
-    private final ResourceBookingLockRepository lockRepository;
+    private final ResourceLockService resourceLockService;
     private final IdempotencyRepository idempotencyRepository;
     private final ResourcePrecheckGateway resourcePrecheckGateway;
     private final DomainEventPublisher domainEventPublisher;
@@ -47,7 +47,7 @@ public class CreateBookingCommandHandler {
     public CreateBookingCommandHandler(
             BookingRepository bookingRepository,
             WaitlistRepository waitlistRepository,
-            ResourceBookingLockRepository lockRepository,
+            ResourceLockService resourceLockService,
             IdempotencyRepository idempotencyRepository,
             ResourcePrecheckGateway resourcePrecheckGateway,
             DomainEventPublisher domainEventPublisher,
@@ -57,7 +57,7 @@ public class CreateBookingCommandHandler {
     ) {
         this.bookingRepository = bookingRepository;
         this.waitlistRepository = waitlistRepository;
-        this.lockRepository = lockRepository;
+        this.resourceLockService = resourceLockService;
         this.idempotencyRepository = idempotencyRepository;
         this.resourcePrecheckGateway = resourcePrecheckGateway;
         this.domainEventPublisher = domainEventPublisher;
@@ -84,81 +84,81 @@ public class CreateBookingCommandHandler {
         }
 
         try {
-            lockRepository.acquireLock(command.resourceId());
+            return resourceLockService.executeWithResourceLock(command.resourceId(), () -> {
+                ResourcePrecheckResult precheck = resourcePrecheckGateway.precheck(command.resourceId(), command.startAt(), command.endAt());
+                if (!precheck.bookingAllowed()) {
+                    throw new ApiException(
+                            "RESOURCE_PRECHECK_FAILED",
+                            HttpStatus.CONFLICT,
+                            "Booking is not allowed by resource policy: " + precheck.reasonCode()
+                    );
+                }
 
-            ResourcePrecheckResult precheck = resourcePrecheckGateway.precheck(command.resourceId(), command.startAt(), command.endAt());
-            if (!precheck.bookingAllowed()) {
-                throw new ApiException(
-                        "RESOURCE_PRECHECK_FAILED",
-                        HttpStatus.CONFLICT,
-                        "Booking is not allowed by resource policy: " + precheck.reasonCode()
+                boolean hasConflict = bookingRepository.existsOverlappingActiveBooking(
+                        command.resourceId(),
+                        command.startAt(),
+                        command.endAt(),
+                        List.of(BookingStatus.PENDING_APPROVAL, BookingStatus.APPROVED)
                 );
-            }
 
-            boolean hasConflict = bookingRepository.existsOverlappingActiveBooking(
-                    command.resourceId(),
-                    command.startAt(),
-                    command.endAt(),
-                    List.of(BookingStatus.PENDING_APPROVAL, BookingStatus.APPROVED)
-            );
+                BookingEntity booking = new BookingEntity();
+                booking.setId(UUID.randomUUID());
+                booking.setUserId(command.userId());
+                booking.setEventId(command.eventId());
+                booking.setResourceId(command.resourceId());
+                booking.setStartAt(command.startAt());
+                booking.setEndAt(command.endAt());
+                booking.setRequestedAt(now);
+                booking.setCorrelationId(command.idempotencyKey());
 
-            BookingEntity booking = new BookingEntity();
-            booking.setId(UUID.randomUUID());
-            booking.setUserId(command.userId());
-            booking.setEventId(command.eventId());
-            booking.setResourceId(command.resourceId());
-            booking.setStartAt(command.startAt());
-            booking.setEndAt(command.endAt());
-            booking.setRequestedAt(now);
-            booking.setCorrelationId(command.idempotencyKey());
+                String statusEventType;
+                if (hasConflict) {
+                    if (!precheck.allowWaitlist()) {
+                        throw new ApiException("BOOKING_CONFLICT", HttpStatus.CONFLICT, "Time slot already booked");
+                    }
+                    booking.setStatus(BookingStatus.WAITLISTED);
+                    booking.setApprovalRequired(precheck.requiresApproval());
+                    booking.setApprovalStatus(precheck.requiresApproval() ? ApprovalStatus.PENDING : ApprovalStatus.NOT_REQUIRED);
+                    booking = bookingRepository.save(booking);
 
-            String statusEventType;
-            if (hasConflict) {
-                if (!precheck.allowWaitlist()) {
-                    throw new ApiException("BOOKING_CONFLICT", HttpStatus.CONFLICT, "Time slot already booked");
-                }
-                booking.setStatus(BookingStatus.WAITLISTED);
-                booking.setApprovalRequired(precheck.requiresApproval());
-                booking.setApprovalStatus(precheck.requiresApproval() ? ApprovalStatus.PENDING : ApprovalStatus.NOT_REQUIRED);
-                booking = bookingRepository.save(booking);
+                    WaitlistEntryEntity entry = new WaitlistEntryEntity();
+                    entry.setId(UUID.randomUUID());
+                    entry.setBookingId(booking.getId());
+                    entry.setResourceId(booking.getResourceId());
+                    entry.setUserId(booking.getUserId());
+                    entry.setStartAt(booking.getStartAt());
+                    entry.setEndAt(booking.getEndAt());
+                    entry.setPositionIndex(waitlistRepository.nextPosition(booking.getResourceId(), booking.getStartAt(), booking.getEndAt()));
+                    entry.setStatus(com.teamresource.booking.domain.model.WaitlistStatus.WAITING);
+                    entry.setCreatedAt(now);
+                    entry.setUpdatedAt(now);
+                    waitlistRepository.save(entry);
 
-                WaitlistEntryEntity entry = new WaitlistEntryEntity();
-                entry.setId(UUID.randomUUID());
-                entry.setBookingId(booking.getId());
-                entry.setResourceId(booking.getResourceId());
-                entry.setUserId(booking.getUserId());
-                entry.setStartAt(booking.getStartAt());
-                entry.setEndAt(booking.getEndAt());
-                entry.setPositionIndex(waitlistRepository.nextPosition(booking.getResourceId(), booking.getStartAt(), booking.getEndAt()));
-                entry.setStatus(com.teamresource.booking.domain.model.WaitlistStatus.WAITING);
-                entry.setCreatedAt(now);
-                entry.setUpdatedAt(now);
-                waitlistRepository.save(entry);
-
-                statusEventType = "BOOKING_WAITLISTED";
-            } else {
-                booking.setApprovalRequired(precheck.requiresApproval());
-                if (precheck.requiresApproval()) {
-                    booking.setStatus(BookingStatus.PENDING_APPROVAL);
-                    booking.setApprovalStatus(ApprovalStatus.PENDING);
-                    statusEventType = "BOOKING_APPROVAL_REQUESTED";
+                    statusEventType = "BOOKING_WAITLISTED";
                 } else {
-                    booking.setStatus(BookingStatus.APPROVED);
-                    booking.setApprovalStatus(ApprovalStatus.NOT_REQUIRED);
-                    booking.setConfirmedAt(now);
-                    statusEventType = "BOOKING_APPROVED";
+                    booking.setApprovalRequired(precheck.requiresApproval());
+                    if (precheck.requiresApproval()) {
+                        booking.setStatus(BookingStatus.PENDING_APPROVAL);
+                        booking.setApprovalStatus(ApprovalStatus.PENDING);
+                        statusEventType = "BOOKING_APPROVAL_REQUESTED";
+                    } else {
+                        booking.setStatus(BookingStatus.APPROVED);
+                        booking.setApprovalStatus(ApprovalStatus.NOT_REQUIRED);
+                        booking.setConfirmedAt(now);
+                        statusEventType = "BOOKING_APPROVED";
+                    }
+                    booking = bookingRepository.save(booking);
                 }
-                booking = bookingRepository.save(booking);
-            }
 
-            domainEventPublisher.publish(bookingEventFactory.from("BOOKING_CREATED", booking, null, now));
-            domainEventPublisher.publish(bookingEventFactory.from(statusEventType, booking, null, now));
+                domainEventPublisher.publish(bookingEventFactory.from("BOOKING_CREATED", booking, null, now));
+                domainEventPublisher.publish(bookingEventFactory.from(statusEventType, booking, null, now));
 
-            idempotency.setStatus(IdempotencyStatus.COMPLETED);
-            idempotency.setCompletedAt(now);
-            idempotency.setResponseJson(writeResponseJson(booking.getId()));
-            idempotencyRepository.save(idempotency);
-            return booking;
+                idempotency.setStatus(IdempotencyStatus.COMPLETED);
+                idempotency.setCompletedAt(now);
+                idempotency.setResponseJson(writeResponseJson(booking.getId()));
+                idempotencyRepository.save(idempotency);
+                return booking;
+            });
         } catch (RuntimeException ex) {
             idempotency.setStatus(IdempotencyStatus.FAILED);
             idempotency.setCompletedAt(OffsetDateTime.now(ZoneOffset.UTC));

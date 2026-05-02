@@ -30,3 +30,5 @@ app:
     workflow-service-base-url: http://localhost:18087
     workflow-service-api-key: test-key
     internal-api-header-name: X-Internal-Api-Key
+  redis:
+    enabled: false

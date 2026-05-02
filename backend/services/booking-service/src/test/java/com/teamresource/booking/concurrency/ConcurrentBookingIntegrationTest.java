@@ -3,6 +3,7 @@ package com.teamresource.booking.concurrency;
 import static org.assertj.core.api.Assertions.assertThat;
 import com.teamresource.booking.api.dto.BookingResponse;
 import com.teamresource.booking.api.dto.CreateBookingRequest;
+import com.teamresource.booking.TestLockConfiguration;
 import com.teamresource.booking.config.ClientProperties;
 import com.teamresource.booking.infra.client.EventClient;
 import com.teamresource.booking.infra.client.ResourceClient;
@@ -24,12 +25,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Import(TestLockConfiguration.class)
 @ContextConfiguration(classes = {com.teamresource.booking.BookingServiceApplication.class, ConcurrentBookingIntegrationTest.TestConfig.class})
 class ConcurrentBookingIntegrationTest {
 

@@ -7,6 +7,7 @@ import com.teamresource.booking.domain.model.ApprovalStatus;
 import com.teamresource.booking.infra.client.WorkflowClient;
 import com.teamresource.booking.infra.persistence.BookingEntity;
 import com.teamresource.booking.infra.persistence.BookingRepository;
+import com.teamresource.booking.lock.ResourceLockService;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -20,50 +21,55 @@ public class WaitlistPromotionService {
     private final BookingRepository bookingRepository;
     private final WorkflowClient workflowClient;
     private final BookingOutboxService bookingOutboxService;
+    private final ResourceLockService resourceLockService;
 
     public WaitlistPromotionService(
             BookingRepository bookingRepository,
             WorkflowClient workflowClient,
-            BookingOutboxService bookingOutboxService
+            BookingOutboxService bookingOutboxService,
+            ResourceLockService resourceLockService
     ) {
         this.bookingRepository = bookingRepository;
         this.workflowClient = workflowClient;
         this.bookingOutboxService = bookingOutboxService;
+        this.resourceLockService = resourceLockService;
     }
 
     public void promote(UUID resourceId, Set<BookingStatus> occupyingStatuses) {
-        List<BookingEntity> candidates = bookingRepository.findWaitlistedBookings(resourceId);
-        for (BookingEntity candidate : candidates) {
-            boolean stillBlocked = bookingRepository.findOverlappingBookings(
-                            candidate.getResourceId(),
-                            candidate.getStartAt(),
-                            candidate.getEndAt(),
-                            occupyingStatuses)
-                    .stream()
-                    .anyMatch(other -> !other.getBookingId().equals(candidate.getBookingId()));
-            if (stillBlocked) {
-                continue;
+        resourceLockService.executeWithResourceLock(resourceId, () -> {
+            List<BookingEntity> candidates = bookingRepository.findWaitlistedBookings(resourceId);
+            for (BookingEntity candidate : candidates) {
+                boolean stillBlocked = bookingRepository.findOverlappingBookings(
+                                candidate.getResourceId(),
+                                candidate.getStartAt(),
+                                candidate.getEndAt(),
+                                occupyingStatuses)
+                        .stream()
+                        .anyMatch(other -> !other.getBookingId().equals(candidate.getBookingId()));
+                if (stillBlocked) {
+                    continue;
+                }
+                OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+                candidate.setWaitlistPosition(null);
+                if (candidate.getApprovalMode() == ApprovalMode.AUTO_APPROVE) {
+                    candidate.setStatus(BookingStatus.APPROVED);
+                    candidate.setApprovalStatus(ApprovalStatus.NOT_REQUIRED);
+                    candidate.setConfirmedAt(now);
+                    candidate.setApprovedAt(now);
+                } else {
+                    candidate.setStatus(BookingStatus.PENDING_APPROVAL);
+                    candidate.setApprovalRequestedAt(now);
+                    candidate.setApprovalStatus(ApprovalStatus.PENDING);
+                }
+                candidate.setUpdatedAt(now);
+                BookingEntity saved = bookingRepository.save(candidate);
+                BookingResponse response = toResponse(saved);
+                if (saved.getStatus() == BookingStatus.PENDING_APPROVAL) {
+                    workflowClient.createBookingApproval(response);
+                }
+                bookingOutboxService.record("booking.waitlist.promoted", response);
             }
-            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-            candidate.setWaitlistPosition(null);
-            if (candidate.getApprovalMode() == ApprovalMode.AUTO_APPROVE) {
-                candidate.setStatus(BookingStatus.APPROVED);
-                candidate.setApprovalStatus(ApprovalStatus.NOT_REQUIRED);
-                candidate.setConfirmedAt(now);
-                candidate.setApprovedAt(now);
-            } else {
-                candidate.setStatus(BookingStatus.PENDING_APPROVAL);
-                candidate.setApprovalRequestedAt(now);
-                candidate.setApprovalStatus(ApprovalStatus.PENDING);
-            }
-            candidate.setUpdatedAt(now);
-            BookingEntity saved = bookingRepository.save(candidate);
-            BookingResponse response = toResponse(saved);
-            if (saved.getStatus() == BookingStatus.PENDING_APPROVAL) {
-                workflowClient.createBookingApproval(response);
-            }
-            bookingOutboxService.record("booking.waitlist.promoted", response);
-        }
+        });
     }
 
     private BookingResponse toResponse(BookingEntity entity) {

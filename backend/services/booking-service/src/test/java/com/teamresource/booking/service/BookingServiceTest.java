@@ -9,11 +9,10 @@ import com.teamresource.booking.infra.client.EventClient;
 import com.teamresource.booking.infra.client.ResourceClient;
 import com.teamresource.booking.infra.client.WorkflowClient;
 import com.teamresource.booking.infra.persistence.BookingEntity;
-import com.teamresource.booking.infra.persistence.BookingLockEntity;
-import com.teamresource.booking.infra.persistence.BookingLockRepository;
 import com.teamresource.booking.infra.persistence.BookingRepository;
 import com.teamresource.booking.infra.persistence.IdempotencyRecordRepository;
 import com.teamresource.booking.infra.persistence.OutboxMessageRepository;
+import com.teamresource.booking.lock.ResourceLockService;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -28,7 +27,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -46,9 +44,6 @@ class BookingServiceTest {
     private BookingRepository bookingRepository;
 
     @Mock
-    private BookingLockRepository bookingLockRepository;
-
-    @Mock
     private IdempotencyRecordRepository idempotencyRecordRepository;
 
     @Mock
@@ -60,8 +55,8 @@ class BookingServiceTest {
     private StubBookingOutboxService bookingOutboxService;
     private BookingTransitionService bookingTransitionService;
     private WaitlistPromotionService waitlistPromotionService;
-    private BookingLockBootstrapService bookingLockBootstrapService;
     private BookingService bookingService;
+    private ResourceLockService resourceLockService;
 
     @BeforeEach
     void setUp() {
@@ -69,32 +64,28 @@ class BookingServiceTest {
         eventClient = new StubEventClient();
         workflowClient = new StubWorkflowClient();
         bookingOutboxService = new StubBookingOutboxService();
+        resourceLockService = new PassThroughResourceLockService();
         bookingTransitionService = new BookingTransitionService(
                 bookingRepository,
-                bookingLockRepository,
+                resourceLockService,
                 bookingOutboxService
         );
         waitlistPromotionService = new WaitlistPromotionService(
                 bookingRepository,
                 workflowClient,
-                bookingOutboxService
+                bookingOutboxService,
+                resourceLockService
         );
-        bookingLockBootstrapService = new BookingLockBootstrapService(new JdbcTemplate()) {
-            @Override
-            public void ensureLockExists(UUID resourceId) {
-            }
-        };
         bookingService = new BookingService(
                 bookingRepository,
-                bookingLockRepository,
+                resourceLockService,
                 idempotencyRecordRepository,
                 resourceClient,
                 eventClient,
                 workflowClient,
                 bookingOutboxService,
                 bookingTransitionService,
-                waitlistPromotionService,
-                bookingLockBootstrapService
+                waitlistPromotionService
         );
     }
 
@@ -108,7 +99,6 @@ class BookingServiceTest {
 
         when(idempotencyRecordRepository.findByIdempotencyKeyAndUserId("key-1", userId)).thenReturn(Optional.empty());
         resourceClient.snapshot = resourceSnapshot(resourceId, managerId, "MANAGER_APPROVAL", true);
-        when(bookingLockRepository.lockByResourceId(resourceId)).thenReturn(Optional.of(new BookingLockEntity()));
         when(bookingRepository.findOverlappingBookings(resourceId, startAt, endAt, Set.of(BookingStatus.APPROVED, BookingStatus.PENDING_APPROVAL)))
                 .thenReturn(List.of());
         when(bookingRepository.save(any(BookingEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -149,7 +139,6 @@ class BookingServiceTest {
         entity.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
 
         when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(entity));
-        when(bookingLockRepository.lockByResourceId(resourceId)).thenReturn(Optional.of(new BookingLockEntity()));
         when(bookingRepository.findOverlappingBookings(resourceId, entity.getStartAt(), entity.getEndAt(), Set.of(BookingStatus.APPROVED, BookingStatus.PENDING_APPROVAL)))
                 .thenReturn(List.of(entity));
         when(bookingRepository.save(any(BookingEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -248,6 +237,13 @@ class BookingServiceTest {
         @Override
         public void record(String eventType, BookingResponse response) {
             this.lastEventType = eventType;
+        }
+    }
+
+    private static class PassThroughResourceLockService implements ResourceLockService {
+        @Override
+        public <T> T executeWithResourceLock(UUID resourceId, java.util.function.Supplier<T> action) {
+            return action.get();
         }
     }
 }

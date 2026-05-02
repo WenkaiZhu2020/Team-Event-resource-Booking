@@ -10,10 +10,10 @@ import com.teamresource.booking.domain.model.BookingSearchCriteria;
 import com.teamresource.booking.domain.model.BookingStatus;
 import com.teamresource.booking.domain.model.WaitlistStatus;
 import com.teamresource.booking.domain.repository.BookingRepository;
-import com.teamresource.booking.domain.repository.ResourceBookingLockRepository;
 import com.teamresource.booking.domain.repository.WaitlistRepository;
 import com.teamresource.booking.infrastructure.persistence.entity.BookingEntity;
 import com.teamresource.booking.infrastructure.persistence.entity.WaitlistEntryEntity;
+import com.teamresource.booking.lock.ResourceLockService;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -29,7 +29,7 @@ public class BookingManagementService {
 
     private final BookingRepository bookingRepository;
     private final WaitlistRepository waitlistRepository;
-    private final ResourceBookingLockRepository lockRepository;
+    private final ResourceLockService resourceLockService;
     private final BookingTransitionService transitionService;
     private final BookingEventFactory eventFactory;
     private final DomainEventPublisher domainEventPublisher;
@@ -37,14 +37,14 @@ public class BookingManagementService {
     public BookingManagementService(
             BookingRepository bookingRepository,
             WaitlistRepository waitlistRepository,
-            ResourceBookingLockRepository lockRepository,
+            ResourceLockService resourceLockService,
             BookingTransitionService transitionService,
             BookingEventFactory eventFactory,
             DomainEventPublisher domainEventPublisher
     ) {
         this.bookingRepository = bookingRepository;
         this.waitlistRepository = waitlistRepository;
-        this.lockRepository = lockRepository;
+        this.resourceLockService = resourceLockService;
         this.transitionService = transitionService;
         this.eventFactory = eventFactory;
         this.domainEventPublisher = domainEventPublisher;
@@ -152,52 +152,52 @@ public class BookingManagementService {
     }
 
     private void promoteFromWaitlist(UUID resourceId, OffsetDateTime startAt, OffsetDateTime endAt, OffsetDateTime now) {
-        lockRepository.acquireLock(resourceId);
+        resourceLockService.executeWithResourceLock(resourceId, () -> {
+            boolean conflict = bookingRepository.existsOverlappingActiveBooking(
+                    resourceId,
+                    startAt,
+                    endAt,
+                    List.of(BookingStatus.APPROVED, BookingStatus.PENDING_APPROVAL)
+            );
+            if (conflict) {
+                return;
+            }
 
-        boolean conflict = bookingRepository.existsOverlappingActiveBooking(
-                resourceId,
-                startAt,
-                endAt,
-                List.of(BookingStatus.APPROVED, BookingStatus.PENDING_APPROVAL)
-        );
-        if (conflict) {
-            return;
-        }
+            WaitlistEntryEntity next = waitlistRepository.findNextWaiting(resourceId, startAt, endAt).orElse(null);
+            if (next == null) {
+                return;
+            }
 
-        WaitlistEntryEntity next = waitlistRepository.findNextWaiting(resourceId, startAt, endAt).orElse(null);
-        if (next == null) {
-            return;
-        }
+            BookingEntity booking = bookingRepository.findById(next.getBookingId()).orElse(null);
+            if (booking == null || booking.getStatus() != BookingStatus.WAITLISTED) {
+                next.setStatus(WaitlistStatus.EXPIRED);
+                next.setUpdatedAt(now);
+                waitlistRepository.save(next);
+                return;
+            }
 
-        BookingEntity booking = bookingRepository.findById(next.getBookingId()).orElse(null);
-        if (booking == null || booking.getStatus() != BookingStatus.WAITLISTED) {
-            next.setStatus(WaitlistStatus.EXPIRED);
+            if (booking.isApprovalRequired()) {
+                booking.setStatus(BookingStatus.PENDING_APPROVAL);
+                booking.setApprovalStatus(ApprovalStatus.PENDING);
+            } else {
+                booking.setStatus(BookingStatus.APPROVED);
+                booking.setApprovalStatus(ApprovalStatus.NOT_REQUIRED);
+                booking.setConfirmedAt(now);
+            }
+
+            BookingEntity saved = bookingRepository.save(booking);
+
+            next.setStatus(WaitlistStatus.PROMOTED);
+            next.setPromotedAt(now);
             next.setUpdatedAt(now);
             waitlistRepository.save(next);
-            return;
-        }
 
-        if (booking.isApprovalRequired()) {
-            booking.setStatus(BookingStatus.PENDING_APPROVAL);
-            booking.setApprovalStatus(ApprovalStatus.PENDING);
-        } else {
-            booking.setStatus(BookingStatus.APPROVED);
-            booking.setApprovalStatus(ApprovalStatus.NOT_REQUIRED);
-            booking.setConfirmedAt(now);
-        }
-
-        BookingEntity saved = bookingRepository.save(booking);
-
-        next.setStatus(WaitlistStatus.PROMOTED);
-        next.setPromotedAt(now);
-        next.setUpdatedAt(now);
-        waitlistRepository.save(next);
-
-        if (saved.isApprovalRequired()) {
-            domainEventPublisher.publish(eventFactory.from("BOOKING_APPROVAL_REQUESTED", saved, "waitlist-promoted", now));
-        } else {
-            domainEventPublisher.publish(eventFactory.from("BOOKING_APPROVED", saved, "waitlist-promoted", now));
-        }
-        domainEventPublisher.publish(eventFactory.from("BOOKING_WAITLIST_PROMOTED", saved, null, now));
+            if (saved.isApprovalRequired()) {
+                domainEventPublisher.publish(eventFactory.from("BOOKING_APPROVAL_REQUESTED", saved, "waitlist-promoted", now));
+            } else {
+                domainEventPublisher.publish(eventFactory.from("BOOKING_APPROVED", saved, "waitlist-promoted", now));
+            }
+            domainEventPublisher.publish(eventFactory.from("BOOKING_WAITLIST_PROMOTED", saved, null, now));
+        });
     }
 }
