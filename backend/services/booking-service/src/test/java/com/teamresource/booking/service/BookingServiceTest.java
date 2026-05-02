@@ -53,6 +53,7 @@ class BookingServiceTest {
     private StubEventClient eventClient;
     private StubWorkflowClient workflowClient;
     private StubBookingOutboxService bookingOutboxService;
+    private BookingOutboxPublisher bookingOutboxPublisher;
     private BookingTransitionService bookingTransitionService;
     private WaitlistPromotionService waitlistPromotionService;
     private BookingService bookingService;
@@ -64,11 +65,17 @@ class BookingServiceTest {
         eventClient = new StubEventClient();
         workflowClient = new StubWorkflowClient();
         bookingOutboxService = new StubBookingOutboxService();
+        bookingOutboxPublisher = new BookingOutboxPublisher(
+                outboxMessageRepository,
+                bookingOutboxService,
+                null
+        );
         resourceLockService = new PassThroughResourceLockService();
         bookingTransitionService = new BookingTransitionService(
                 bookingRepository,
                 resourceLockService,
-                bookingOutboxService
+                bookingOutboxService,
+                bookingOutboxPublisher
         );
         waitlistPromotionService = new WaitlistPromotionService(
                 bookingRepository,

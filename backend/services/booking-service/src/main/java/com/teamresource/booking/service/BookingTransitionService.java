@@ -19,15 +19,18 @@ public class BookingTransitionService {
     private final BookingRepository bookingRepository;
     private final ResourceLockService resourceLockService;
     private final BookingOutboxService bookingOutboxService;
+    private final BookingOutboxPublisher bookingOutboxPublisher;
 
     public BookingTransitionService(
             BookingRepository bookingRepository,
             ResourceLockService resourceLockService,
-            BookingOutboxService bookingOutboxService
+            BookingOutboxService bookingOutboxService,
+            BookingOutboxPublisher bookingOutboxPublisher
     ) {
         this.bookingRepository = bookingRepository;
         this.resourceLockService = resourceLockService;
         this.bookingOutboxService = bookingOutboxService;
+        this.bookingOutboxPublisher = bookingOutboxPublisher;
     }
 
     public BookingEntity cancel(BookingEntity entity) {
@@ -85,6 +88,54 @@ public class BookingTransitionService {
             entity.setUpdatedAt(now);
             BookingEntity saved = bookingRepository.save(entity);
             bookingOutboxService.record("booking.rejected", toResponse(saved));
+            return saved;
+        });
+    }
+
+    public BookingEntity compensateResourceAllocationFailure(BookingEntity entity, String reason) {
+        return compensate(entity, BookingStatus.CANCELLED, reason, "RESOURCE_ALLOCATION_FAILED");
+    }
+
+    public BookingEntity compensateWorkflowApprovalRejected(BookingEntity entity, String reason) {
+        return compensate(entity, BookingStatus.REJECTED, reason, "WORKFLOW_APPROVAL_REJECTED");
+    }
+
+    private BookingEntity compensate(BookingEntity entity, BookingStatus targetStatus, String reason, String source) {
+        if (entity.getStatus() == targetStatus) {
+            return entity;
+        }
+        if (entity.getStatus() != BookingStatus.PENDING_APPROVAL) {
+            return entity;
+        }
+
+        return resourceLockService.executeWithResourceLock(entity.getResourceId(), () -> {
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            BookingStatus previousStatus = entity.getStatus();
+            entity.setStatus(targetStatus);
+            entity.setApprovalStatus(ApprovalStatus.REJECTED);
+            entity.setDecidedAt(now);
+            entity.setDecisionNote(reason);
+            entity.setUpdatedAt(now);
+
+            if (targetStatus == BookingStatus.CANCELLED) {
+                entity.setCancelledAt(now);
+                entity.setCancellationReason(reason);
+            } else {
+                entity.setRejectedAt(now);
+                entity.setRejectionReason(reason);
+            }
+
+            BookingEntity saved = bookingRepository.save(entity);
+            bookingOutboxPublisher.enqueueCompensatedEvent(new BookingCompensatedEvent(
+                    saved.getBookingId(),
+                    saved.getResourceId(),
+                    previousStatus.name(),
+                    saved.getStatus().name(),
+                    source,
+                    reason,
+                    saved.getCorrelationId(),
+                    now
+            ));
             return saved;
         });
     }

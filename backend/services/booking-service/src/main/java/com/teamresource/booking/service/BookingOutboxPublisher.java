@@ -28,6 +28,10 @@ public class BookingOutboxPublisher {
         this.rabbitTemplate = rabbitTemplate;
     }
 
+    public void enqueueCompensatedEvent(BookingCompensatedEvent event) {
+        bookingOutboxService.record("booking.compensated", event.bookingId(), event);
+    }
+
     @Scheduled(fixedDelayString = "${app.outbox.publish-delay-ms:5000}")
     @Transactional
     public void publishPendingMessages() {
