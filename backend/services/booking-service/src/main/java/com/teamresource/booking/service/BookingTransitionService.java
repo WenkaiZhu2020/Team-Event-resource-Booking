@@ -4,14 +4,11 @@ import com.teamresource.booking.api.dto.BookingResponse;
 import com.teamresource.booking.domain.BookingStatus;
 import com.teamresource.booking.domain.model.ApprovalStatus;
 import com.teamresource.booking.infra.persistence.BookingEntity;
-import com.teamresource.booking.infra.persistence.BookingLockEntity;
-import com.teamresource.booking.infra.persistence.BookingLockRepository;
 import com.teamresource.booking.infra.persistence.BookingRepository;
+import com.teamresource.booking.lock.ResourceLockService;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Set;
-import java.util.UUID;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -20,16 +17,16 @@ import org.springframework.web.server.ResponseStatusException;
 public class BookingTransitionService {
 
     private final BookingRepository bookingRepository;
-    private final BookingLockRepository bookingLockRepository;
+    private final ResourceLockService resourceLockService;
     private final BookingOutboxService bookingOutboxService;
 
     public BookingTransitionService(
             BookingRepository bookingRepository,
-            BookingLockRepository bookingLockRepository,
+            ResourceLockService resourceLockService,
             BookingOutboxService bookingOutboxService
     ) {
         this.bookingRepository = bookingRepository;
-        this.bookingLockRepository = bookingLockRepository;
+        this.resourceLockService = resourceLockService;
         this.bookingOutboxService = bookingOutboxService;
     }
 
@@ -38,16 +35,17 @@ public class BookingTransitionService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Booking is already closed");
         }
 
-        acquireResourceLock(entity.getResourceId());
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        entity.setStatus(BookingStatus.CANCELLED);
-        entity.setCancelledAt(now);
-        entity.setCancellationReason(noteOrDefault(entity.getDecisionNote()));
-        entity.setApprovalStatus(entity.getApprovalStatus() == null ? ApprovalStatus.REJECTED : entity.getApprovalStatus());
-        entity.setUpdatedAt(now);
-        BookingEntity saved = bookingRepository.save(entity);
-        bookingOutboxService.record("booking.cancelled", toResponse(saved));
-        return saved;
+        return resourceLockService.executeWithResourceLock(entity.getResourceId(), () -> {
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            entity.setStatus(BookingStatus.CANCELLED);
+            entity.setCancelledAt(now);
+            entity.setCancellationReason(noteOrDefault(entity.getDecisionNote()));
+            entity.setApprovalStatus(entity.getApprovalStatus() == null ? ApprovalStatus.REJECTED : entity.getApprovalStatus());
+            entity.setUpdatedAt(now);
+            BookingEntity saved = bookingRepository.save(entity);
+            bookingOutboxService.record("booking.cancelled", toResponse(saved));
+            return saved;
+        });
     }
 
     public BookingEntity approve(BookingEntity entity, String note, Set<BookingStatus> occupyingStatuses) {
@@ -55,19 +53,20 @@ public class BookingTransitionService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only pending bookings can be approved");
         }
 
-        acquireResourceLock(entity.getResourceId());
-        ensureNoConflictsExcluding(entity, occupyingStatuses);
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        entity.setStatus(BookingStatus.APPROVED);
-        entity.setDecidedAt(now);
-        entity.setDecisionNote(note);
-        entity.setApprovalStatus(ApprovalStatus.APPROVED);
-        entity.setConfirmedAt(now);
-        entity.setApprovedAt(now);
-        entity.setUpdatedAt(now);
-        BookingEntity saved = bookingRepository.save(entity);
-        bookingOutboxService.record("booking.approved", toResponse(saved));
-        return saved;
+        return resourceLockService.executeWithResourceLock(entity.getResourceId(), () -> {
+            ensureNoConflictsExcluding(entity, occupyingStatuses);
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            entity.setStatus(BookingStatus.APPROVED);
+            entity.setDecidedAt(now);
+            entity.setDecisionNote(note);
+            entity.setApprovalStatus(ApprovalStatus.APPROVED);
+            entity.setConfirmedAt(now);
+            entity.setApprovedAt(now);
+            entity.setUpdatedAt(now);
+            BookingEntity saved = bookingRepository.save(entity);
+            bookingOutboxService.record("booking.approved", toResponse(saved));
+            return saved;
+        });
     }
 
     public BookingEntity reject(BookingEntity entity, String note) {
@@ -75,18 +74,19 @@ public class BookingTransitionService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only pending bookings can be rejected");
         }
 
-        acquireResourceLock(entity.getResourceId());
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        entity.setStatus(BookingStatus.REJECTED);
-        entity.setDecidedAt(now);
-        entity.setDecisionNote(note);
-        entity.setApprovalStatus(ApprovalStatus.REJECTED);
-        entity.setRejectedAt(now);
-        entity.setRejectionReason(note);
-        entity.setUpdatedAt(now);
-        BookingEntity saved = bookingRepository.save(entity);
-        bookingOutboxService.record("booking.rejected", toResponse(saved));
-        return saved;
+        return resourceLockService.executeWithResourceLock(entity.getResourceId(), () -> {
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            entity.setStatus(BookingStatus.REJECTED);
+            entity.setDecidedAt(now);
+            entity.setDecisionNote(note);
+            entity.setApprovalStatus(ApprovalStatus.REJECTED);
+            entity.setRejectedAt(now);
+            entity.setRejectionReason(note);
+            entity.setUpdatedAt(now);
+            BookingEntity saved = bookingRepository.save(entity);
+            bookingOutboxService.record("booking.rejected", toResponse(saved));
+            return saved;
+        });
     }
 
     private void ensureNoConflictsExcluding(BookingEntity entity, Set<BookingStatus> occupyingStatuses) {
@@ -99,22 +99,6 @@ public class BookingTransitionService {
                 .anyMatch(other -> !other.getBookingId().equals(entity.getBookingId()));
         if (conflict) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Booking can no longer be approved because the slot is occupied");
-        }
-    }
-
-    private void acquireResourceLock(UUID resourceId) {
-        try {
-            bookingLockRepository.lockByResourceId(resourceId).orElseGet(() -> {
-                BookingLockEntity lockEntity = new BookingLockEntity();
-                lockEntity.setResourceId(resourceId);
-                lockEntity.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-                bookingLockRepository.saveAndFlush(lockEntity);
-                return bookingLockRepository.lockByResourceId(resourceId)
-                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to acquire booking lock"));
-            });
-        } catch (DataIntegrityViolationException ex) {
-            bookingLockRepository.lockByResourceId(resourceId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to acquire booking lock"));
         }
     }
 

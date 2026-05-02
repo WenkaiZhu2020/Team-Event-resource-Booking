@@ -34,6 +34,18 @@ services:
       retries: 10
       start_period: 30s
 
+  redis:
+    image: redis:7.4-alpine
+    container_name: trms-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
   auth-service:
     build:
       context: ./backend
@@ -141,6 +153,8 @@ services:
         condition: service_started
       rabbitmq:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       SERVER_PORT: 8085
       BOOKING_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-team_resource_mgmt}
@@ -157,6 +171,7 @@ services:
       WORKFLOW_SERVICE_BASE_URL: http://workflow-service:8087
       BOOKING_SERVICE_API_KEY: ${BOOKING_SERVICE_API_KEY:-change-me}
       WORKFLOW_SERVICE_API_KEY: ${WORKFLOW_SERVICE_API_KEY:-change-me}
+      BOOKING_REDIS_ADDRESS: ${BOOKING_REDIS_ADDRESS:-redis://redis:6379}
     ports:
       - "8085:8085"
 

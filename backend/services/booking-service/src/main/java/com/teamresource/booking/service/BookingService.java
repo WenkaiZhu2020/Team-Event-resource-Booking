@@ -10,10 +10,10 @@ import com.teamresource.booking.infra.client.EventClient;
 import com.teamresource.booking.infra.client.ResourceClient;
 import com.teamresource.booking.infra.client.WorkflowClient;
 import com.teamresource.booking.infra.persistence.BookingEntity;
-import com.teamresource.booking.infra.persistence.BookingLockRepository;
 import com.teamresource.booking.infra.persistence.BookingRepository;
 import com.teamresource.booking.infra.persistence.IdempotencyRecordEntity;
 import com.teamresource.booking.infra.persistence.IdempotencyRecordRepository;
+import com.teamresource.booking.lock.ResourceLockService;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -37,7 +37,7 @@ public class BookingService {
     private static final Set<BookingStatus> OCCUPYING_STATUSES = EnumSet.of(BookingStatus.APPROVED, BookingStatus.PENDING_APPROVAL);
 
     private final BookingRepository bookingRepository;
-    private final BookingLockRepository bookingLockRepository;
+    private final ResourceLockService resourceLockService;
     private final IdempotencyRecordRepository idempotencyRecordRepository;
     private final ResourceClient resourceClient;
     private final EventClient eventClient;
@@ -45,22 +45,20 @@ public class BookingService {
     private final BookingOutboxService bookingOutboxService;
     private final BookingTransitionService bookingTransitionService;
     private final WaitlistPromotionService waitlistPromotionService;
-    private final BookingLockBootstrapService bookingLockBootstrapService;
 
     public BookingService(
             BookingRepository bookingRepository,
-            BookingLockRepository bookingLockRepository,
+            ResourceLockService resourceLockService,
             IdempotencyRecordRepository idempotencyRecordRepository,
             ResourceClient resourceClient,
             EventClient eventClient,
             WorkflowClient workflowClient,
             BookingOutboxService bookingOutboxService,
             BookingTransitionService bookingTransitionService,
-            WaitlistPromotionService waitlistPromotionService,
-            BookingLockBootstrapService bookingLockBootstrapService
+            WaitlistPromotionService waitlistPromotionService
     ) {
         this.bookingRepository = bookingRepository;
-        this.bookingLockRepository = bookingLockRepository;
+        this.resourceLockService = resourceLockService;
         this.idempotencyRecordRepository = idempotencyRecordRepository;
         this.resourceClient = resourceClient;
         this.eventClient = eventClient;
@@ -68,7 +66,6 @@ public class BookingService {
         this.bookingOutboxService = bookingOutboxService;
         this.bookingTransitionService = bookingTransitionService;
         this.waitlistPromotionService = waitlistPromotionService;
-        this.bookingLockBootstrapService = bookingLockBootstrapService;
     }
 
     @Transactional
@@ -87,60 +84,60 @@ public class BookingService {
             ensureLinkableEvent(request.linkedEventId());
         }
 
-        acquireResourceLock(resource.resourceId());
+        return resourceLockService.executeWithResourceLock(resource.resourceId(), () -> {
+            List<BookingEntity> overlapping = bookingRepository.findOverlappingBookings(
+                    resource.resourceId(),
+                    request.startAt(),
+                    request.endAt(),
+                    OCCUPYING_STATUSES
+            );
 
-        List<BookingEntity> overlapping = bookingRepository.findOverlappingBookings(
-                resource.resourceId(),
-                request.startAt(),
-                request.endAt(),
-                OCCUPYING_STATUSES
-        );
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            BookingEntity entity = new BookingEntity();
+            entity.setBookingId(UUID.randomUUID());
+            entity.setUserId(userId);
+            entity.setLinkedEventId(request.linkedEventId());
+            entity.setResourceId(resource.resourceId());
+            entity.setResourceName(resource.name());
+            entity.setResourceManagerId(resource.managerId());
+            entity.setResourceType(resource.type());
+            entity.setStartAt(request.startAt());
+            entity.setEndAt(request.endAt());
+            entity.setPurpose(request.purpose().trim());
+            entity.setApprovalMode(parseApprovalMode(resource.approvalMode()));
+            entity.setCreatedAt(now);
+            entity.setUpdatedAt(now);
+            entity.setRequestedAt(now);
+            entity.setApprovalRequired(entity.getApprovalMode() != ApprovalMode.AUTO_APPROVE);
+            entity.setCorrelationId(trimToNull(idempotencyKey));
 
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        BookingEntity entity = new BookingEntity();
-        entity.setBookingId(UUID.randomUUID());
-        entity.setUserId(userId);
-        entity.setLinkedEventId(request.linkedEventId());
-        entity.setResourceId(resource.resourceId());
-        entity.setResourceName(resource.name());
-        entity.setResourceManagerId(resource.managerId());
-        entity.setResourceType(resource.type());
-        entity.setStartAt(request.startAt());
-        entity.setEndAt(request.endAt());
-        entity.setPurpose(request.purpose().trim());
-        entity.setApprovalMode(parseApprovalMode(resource.approvalMode()));
-        entity.setCreatedAt(now);
-        entity.setUpdatedAt(now);
-        entity.setRequestedAt(now);
-        entity.setApprovalRequired(entity.getApprovalMode() != ApprovalMode.AUTO_APPROVE);
-        entity.setCorrelationId(trimToNull(idempotencyKey));
-
-        if (!overlapping.isEmpty()) {
-            if (!resource.allowWaitlist()) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "The requested time slot is already occupied");
+            if (!overlapping.isEmpty()) {
+                if (!resource.allowWaitlist()) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "The requested time slot is already occupied");
+                }
+                entity.setStatus(BookingStatus.WAITLISTED);
+                entity.setWaitlistPosition(nextWaitlistPosition(resource.resourceId()));
+                entity.setApprovalStatus(entity.getApprovalRequired() ? ApprovalStatus.PENDING : ApprovalStatus.NOT_REQUIRED);
+            } else if (entity.getApprovalMode() == ApprovalMode.AUTO_APPROVE) {
+                entity.setStatus(BookingStatus.APPROVED);
+                entity.setApprovalStatus(ApprovalStatus.NOT_REQUIRED);
+                entity.setConfirmedAt(now);
+                entity.setApprovedAt(now);
+            } else {
+                entity.setStatus(BookingStatus.PENDING_APPROVAL);
+                entity.setApprovalRequestedAt(now);
+                entity.setApprovalStatus(ApprovalStatus.PENDING);
             }
-            entity.setStatus(BookingStatus.WAITLISTED);
-            entity.setWaitlistPosition(nextWaitlistPosition(resource.resourceId()));
-            entity.setApprovalStatus(entity.getApprovalRequired() ? ApprovalStatus.PENDING : ApprovalStatus.NOT_REQUIRED);
-        } else if (entity.getApprovalMode() == ApprovalMode.AUTO_APPROVE) {
-            entity.setStatus(BookingStatus.APPROVED);
-            entity.setApprovalStatus(ApprovalStatus.NOT_REQUIRED);
-            entity.setConfirmedAt(now);
-            entity.setApprovedAt(now);
-        } else {
-            entity.setStatus(BookingStatus.PENDING_APPROVAL);
-            entity.setApprovalRequestedAt(now);
-            entity.setApprovalStatus(ApprovalStatus.PENDING);
-        }
 
-        BookingEntity saved = bookingRepository.save(entity);
-        storeIdempotencyRecord(saved, userId, idempotencyKey, now);
-        BookingResponse response = toResponse(saved);
-        if (saved.getStatus() == BookingStatus.PENDING_APPROVAL) {
-            workflowClient.createBookingApproval(response);
-        }
-        bookingOutboxService.record("booking.created", response);
-        return response;
+            BookingEntity saved = bookingRepository.save(entity);
+            storeIdempotencyRecord(saved, userId, idempotencyKey, now);
+            BookingResponse response = toResponse(saved);
+            if (saved.getStatus() == BookingStatus.PENDING_APPROVAL) {
+                workflowClient.createBookingApproval(response);
+            }
+            bookingOutboxService.record("booking.created", response);
+            return response;
+        });
     }
 
     @Transactional(readOnly = true)
@@ -304,14 +301,6 @@ public class BookingService {
                 .filter(position -> position != null)
                 .max(Integer::compareTo)
                 .orElse(0) + 1;
-    }
-
-    private void acquireResourceLock(UUID resourceId) {
-        // The bootstrap step handles the "first writer for this resource" race once.
-        // After that, the repository method takes the actual pessimistic lock used by booking writes.
-        bookingLockBootstrapService.ensureLockExists(resourceId);
-        bookingLockRepository.lockByResourceId(resourceId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to acquire booking lock"));
     }
 
     private void storeIdempotencyRecord(BookingEntity entity, UUID userId, String idempotencyKey, OffsetDateTime now) {
