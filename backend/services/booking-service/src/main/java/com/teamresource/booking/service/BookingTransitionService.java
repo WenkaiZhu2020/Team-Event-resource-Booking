@@ -111,8 +111,11 @@ public class BookingTransitionService {
         return resourceLockService.executeWithResourceLock(entity.getResourceId(), () -> {
             // Re-fetch inside the lock so the status check is not based on a stale snapshot
             BookingEntity current = bookingRepository.findById(entity.getBookingId()).orElse(null);
-            if (current == null || current.getStatus() == targetStatus) {
-                return entity;
+            if (current == null) {
+                return null;
+            }
+            if (current.getStatus() == targetStatus) {
+                return current;
             }
             if (current.getStatus() != BookingStatus.PENDING_APPROVAL) {
                 return current;
