@@ -24,12 +24,16 @@ public class BookingOutboxService {
     }
 
     public void record(String eventType, BookingResponse response) {
+        record(eventType, response.bookingId(), response);
+    }
+
+    public void record(String eventType, UUID aggregateId, Object payload) {
         OutboxMessageEntity message = new OutboxMessageEntity();
         message.setMessageId(UUID.randomUUID());
         message.setAggregateType("BOOKING");
-        message.setAggregateId(response.bookingId());
+        message.setAggregateId(aggregateId);
         message.setEventType(eventType);
-        message.setPayload(toJson(response));
+        message.setPayload(toJson(payload));
         message.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         outboxMessageRepository.save(message);
     }
@@ -45,9 +49,9 @@ public class BookingOutboxService {
         );
     }
 
-    private String toJson(BookingResponse response) {
+    private String toJson(Object payload) {
         try {
-            return objectMapper.writeValueAsString(response);
+            return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException ex) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "Failed to serialize outbox payload");
         }
