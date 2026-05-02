@@ -26,10 +26,6 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
-  data:
-    redis:
-      repositories:
-        enabled: false
 
 management:
   endpoints:
@@ -62,3 +58,4 @@ app:
     address: ${BOOKING_REDIS_ADDRESS:redis://localhost:6379}
     password: ${BOOKING_REDIS_PASSWORD:}
     database: ${BOOKING_REDIS_DATABASE:0}
+    lock-wait-seconds: ${BOOKING_REDIS_LOCK_WAIT_SECONDS:3}

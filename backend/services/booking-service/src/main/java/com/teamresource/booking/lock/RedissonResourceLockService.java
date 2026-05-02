@@ -12,14 +12,14 @@ import org.springframework.web.server.ResponseStatusException;
 
 public class RedissonResourceLockService implements ResourceLockService {
 
-    private static final long WAIT_TIME_SECONDS = 3L;
-    private static final long LEASE_TIME_SECONDS = 10L;
     private static final String LOCK_KEY_PREFIX = "booking-service:resource:";
 
     private final RedissonClient redissonClient;
+    private final long waitTimeSeconds;
 
-    public RedissonResourceLockService(RedissonClient redissonClient) {
+    public RedissonResourceLockService(RedissonClient redissonClient, long waitTimeSeconds) {
         this.redissonClient = redissonClient;
+        this.waitTimeSeconds = waitTimeSeconds;
     }
 
     @Override
@@ -29,7 +29,8 @@ public class RedissonResourceLockService implements ResourceLockService {
         boolean unlockOnTransactionCompletion = false;
 
         try {
-            locked = lock.tryLock(WAIT_TIME_SECONDS, LEASE_TIME_SECONDS, TimeUnit.SECONDS);
+            // Let Redisson's watchdog renew the lease until the transaction completes.
+            locked = lock.tryLock(waitTimeSeconds, TimeUnit.SECONDS);
             if (!locked) {
                 throw new ResponseStatusException(
                         HttpStatus.CONFLICT,

@@ -7,6 +7,7 @@ public record RedisProperties(
         boolean enabled,
         String address,
         String password,
-        int database
+        int database,
+        long lockWaitSeconds
 ) {
 }
