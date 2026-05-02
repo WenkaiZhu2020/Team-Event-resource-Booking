@@ -9,6 +9,7 @@ import com.teamresource.workflow.infra.persistence.WorkflowOutboxEntity;
 import com.teamresource.workflow.infra.persistence.WorkflowOutboxRepository;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -32,15 +33,16 @@ public class ApprovalOutboxService {
         message.setAggregateType("APPROVAL_REQUEST");
         message.setAggregateId(entity.getApprovalId());
         message.setEventType(eventType);
-        message.setPayload(toJson(Map.of(
-                "approvalId", entity.getApprovalId(),
-                "targetType", entity.getTargetType().name(),
-                "targetId", entity.getTargetId(),
-                "status", entity.getStatus().name(),
-                "approverId", entity.getApproverId(),
-                "requesterId", entity.getRequesterId(),
-                "updatedAt", entity.getUpdatedAt() == null ? entity.getCreatedAt() : entity.getUpdatedAt()
-        )));
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("approvalId", entity.getApprovalId());
+        payload.put("targetType", entity.getTargetType().name());
+        payload.put("targetId", entity.getTargetId());
+        payload.put("status", entity.getStatus().name());
+        payload.put("approverId", entity.getApproverId());
+        payload.put("requesterId", entity.getRequesterId());
+        payload.put("decisionNote", entity.getDecisionNote());
+        payload.put("updatedAt", entity.getUpdatedAt() == null ? entity.getCreatedAt() : entity.getUpdatedAt());
+        message.setPayload(toJson(payload));
         message.setStatus(OutboxStatus.PENDING);
         message.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         workflowOutboxRepository.save(message);

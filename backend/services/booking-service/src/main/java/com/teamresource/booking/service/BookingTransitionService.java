@@ -109,23 +109,31 @@ public class BookingTransitionService {
         }
 
         return resourceLockService.executeWithResourceLock(entity.getResourceId(), () -> {
+            // Re-fetch inside the lock so the status check is not based on a stale snapshot
+            BookingEntity current = bookingRepository.findById(entity.getBookingId()).orElse(null);
+            if (current == null || current.getStatus() == targetStatus) {
+                return entity;
+            }
+            if (current.getStatus() != BookingStatus.PENDING_APPROVAL) {
+                return current;
+            }
             OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-            BookingStatus previousStatus = entity.getStatus();
-            entity.setStatus(targetStatus);
-            entity.setApprovalStatus(ApprovalStatus.REJECTED);
-            entity.setDecidedAt(now);
-            entity.setDecisionNote(reason);
-            entity.setUpdatedAt(now);
+            BookingStatus previousStatus = current.getStatus();
+            current.setStatus(targetStatus);
+            current.setApprovalStatus(ApprovalStatus.REJECTED);
+            current.setDecidedAt(now);
+            current.setDecisionNote(reason);
+            current.setUpdatedAt(now);
 
             if (targetStatus == BookingStatus.CANCELLED) {
-                entity.setCancelledAt(now);
-                entity.setCancellationReason(reason);
+                current.setCancelledAt(now);
+                current.setCancellationReason(reason);
             } else {
-                entity.setRejectedAt(now);
-                entity.setRejectionReason(reason);
+                current.setRejectedAt(now);
+                current.setRejectionReason(reason);
             }
 
-            BookingEntity saved = bookingRepository.save(entity);
+            BookingEntity saved = bookingRepository.save(current);
             bookingOutboxPublisher.enqueueCompensatedEvent(new BookingCompensatedEvent(
                     saved.getBookingId(),
                     saved.getResourceId(),

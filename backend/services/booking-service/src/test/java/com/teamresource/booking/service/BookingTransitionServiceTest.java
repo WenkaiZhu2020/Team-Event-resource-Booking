@@ -47,6 +47,7 @@ class BookingTransitionServiceTest {
     @Test
     void compensateResourceAllocationFailureShouldCancelPendingBookingAndWriteCompensationEvent() {
         BookingEntity entity = pendingBooking();
+        when(bookingRepository.findById(entity.getBookingId())).thenReturn(java.util.Optional.of(entity));
         when(bookingRepository.save(any(BookingEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         BookingEntity saved = bookingTransitionService.compensateResourceAllocationFailure(entity, "Inventory reservation failed");
@@ -70,6 +71,7 @@ class BookingTransitionServiceTest {
     @Test
     void compensateWorkflowApprovalRejectedShouldRejectPendingBookingAndWriteCompensationEvent() {
         BookingEntity entity = pendingBooking();
+        when(bookingRepository.findById(entity.getBookingId())).thenReturn(java.util.Optional.of(entity));
         when(bookingRepository.save(any(BookingEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         BookingEntity saved = bookingTransitionService.compensateWorkflowApprovalRejected(entity, "Manager rejected booking");
@@ -83,6 +85,22 @@ class BookingTransitionServiceTest {
         assertThat(bookingOutboxPublisher.lastCompensationEvent.previousStatus()).isEqualTo("PENDING_APPROVAL");
         assertThat(bookingOutboxPublisher.lastCompensationEvent.compensatedStatus()).isEqualTo("REJECTED");
         assertThat(bookingOutboxPublisher.lastCompensationEvent.compensationSource()).isEqualTo("WORKFLOW_APPROVAL_REJECTED");
+    }
+
+    @Test
+    void compensateShouldBeNoOpWhenRefetchedEntityIsNoLongerPending() {
+        BookingEntity staleEntity = pendingBooking();
+        BookingEntity currentEntity = pendingBooking();
+        currentEntity.setBookingId(staleEntity.getBookingId());
+        currentEntity.setResourceId(staleEntity.getResourceId());
+        currentEntity.setStatus(BookingStatus.APPROVED);
+        when(bookingRepository.findById(staleEntity.getBookingId())).thenReturn(java.util.Optional.of(currentEntity));
+
+        BookingEntity returned = bookingTransitionService.compensateResourceAllocationFailure(staleEntity, "late failure");
+
+        assertThat(returned).isSameAs(currentEntity);
+        verify(bookingRepository, never()).save(any());
+        assertThat(bookingOutboxPublisher.lastCompensationEvent).isNull();
     }
 
     @Test
