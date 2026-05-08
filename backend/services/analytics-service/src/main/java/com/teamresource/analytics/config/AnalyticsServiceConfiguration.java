@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @Configuration
 @EnableScheduling
-@EnableConfigurationProperties({JwtProperties.class, AnalyticsProperties.class, InternalApiProperties.class})
+@EnableConfigurationProperties(AnalyticsProperties.class)
 public class AnalyticsServiceConfiguration {
 
     @Bean(name = "analyticsTaskExecutor")

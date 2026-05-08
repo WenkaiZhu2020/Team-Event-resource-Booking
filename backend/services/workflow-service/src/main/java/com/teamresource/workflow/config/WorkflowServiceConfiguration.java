@@ -8,7 +8,7 @@ import org.springframework.web.client.RestClient;
 
 @Configuration
 @EnableScheduling
-@EnableConfigurationProperties({JwtProperties.class, InternalApiProperties.class, ClientProperties.class})
+@EnableConfigurationProperties(ClientProperties.class)
 public class WorkflowServiceConfiguration {
 
     public static final String WORKFLOW_EVENTS_EXCHANGE = "team-resource.events";

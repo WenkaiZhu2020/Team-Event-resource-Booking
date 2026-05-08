@@ -21,10 +21,12 @@ import com.teamresource.resource.service.policy.ResourcePolicyDefaultsFactory;
 import com.teamresource.resource.service.specification.ResourceSpecifications;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -74,24 +76,28 @@ public class ResourceService {
     }
 
     @Transactional(readOnly = true)
-    public List<ResourceResponse> listCatalog(String query, String type, String status, Boolean requiresApproval) {
+    public Page<ResourceResponse> listCatalog(String query, String type, String status, Boolean requiresApproval, int page, int size) {
         Specification<ResourceEntity> specification = ResourceSpecifications.visibleCatalog(
                 query,
                 parseType(type),
                 parseStatus(status),
                 requiresApproval
         );
-        return resourceRepository.findAll(specification).stream()
-                .sorted(Comparator.comparing(ResourceEntity::getCreatedAt).reversed())
-                .map(this::toResponse)
-                .toList();
+        PageRequest pageable = PageRequest.of(
+                Math.max(0, page),
+                Math.max(1, Math.min(size, 100)),
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+        return resourceRepository.findAll(specification, pageable).map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
-    public List<ResourceResponse> myResources(UUID managerId) {
-        return resourceRepository.findByManagerIdOrderByCreatedAtDesc(managerId).stream()
-                .map(this::toResponse)
-                .toList();
+    public Page<ResourceResponse> myResources(UUID managerId, int page, int size) {
+        PageRequest pageable = PageRequest.of(
+                Math.max(0, page),
+                Math.max(1, Math.min(size, 100))
+        );
+        return resourceRepository.findByManagerIdOrderByCreatedAtDesc(managerId, pageable).map(this::toResponse);
     }
 
     @Transactional(readOnly = true)

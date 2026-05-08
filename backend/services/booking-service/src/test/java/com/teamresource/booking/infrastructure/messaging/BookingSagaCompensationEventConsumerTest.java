@@ -1,8 +1,8 @@
 package com.teamresource.booking.infrastructure.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.teamresource.booking.domain.repository.ConsumedMessageRepository;
-import com.teamresource.booking.infrastructure.persistence.entity.ConsumedMessageEntity;
+import com.teamresource.booking.infra.persistence.ConsumedMessageEntity;
+import com.teamresource.booking.infra.persistence.ConsumedMessageRepository;
 import com.teamresource.booking.service.BookingSagaCompensationService;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
@@ -53,7 +53,7 @@ class BookingSagaCompensationEventConsumerTest {
                 """.formatted(bookingId)).getBytes(StandardCharsets.UTF_8))
                 .setMessageId("msg-1")
                 .build();
-        when(consumedMessageRepository.exists("booking-saga", "msg-1")).thenReturn(false);
+        when(consumedMessageRepository.existsBySourceAndMessageId("booking-saga", "msg-1")).thenReturn(false);
 
         consumer.onMessage(message);
 
@@ -78,7 +78,7 @@ class BookingSagaCompensationEventConsumerTest {
                 .setMessageId("msg-2")
                 .setReceivedRoutingKey("resource.allocation.failed")
                 .build();
-        when(consumedMessageRepository.exists("booking-saga", "msg-2")).thenReturn(false);
+        when(consumedMessageRepository.existsBySourceAndMessageId("booking-saga", "msg-2")).thenReturn(false);
 
         consumer.onMessage(message);
 
@@ -91,7 +91,7 @@ class BookingSagaCompensationEventConsumerTest {
         Message message = MessageBuilder.withBody("{\"eventType\":\"workflow.approval.rejected\"}".getBytes(StandardCharsets.UTF_8))
                 .setMessageId("msg-3")
                 .build();
-        when(consumedMessageRepository.exists("booking-saga", "msg-3")).thenReturn(true);
+        when(consumedMessageRepository.existsBySourceAndMessageId("booking-saga", "msg-3")).thenReturn(true);
 
         consumer.onMessage(message);
 

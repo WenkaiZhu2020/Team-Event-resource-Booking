@@ -37,7 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 OAuth2ClientAutoConfiguration.class
         },
         excludeFilters = {
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.teamresource.auth.infra.security.JwtAuthenticationFilter.class)
+                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.teamresource.common.security.JwtAuthenticationFilter.class)
         }
 )
 @AutoConfigureMockMvc(addFilters = false)

@@ -1,8 +1,8 @@
 package com.teamresource.analytics.config;
 
-import com.teamresource.analytics.infra.security.InternalApiKeyFilter;
-import com.teamresource.analytics.infra.security.JsonAuthEntryPoint;
-import com.teamresource.analytics.infra.security.JwtAuthenticationFilter;
+import com.teamresource.common.security.InternalApiKeyFilter;
+import com.teamresource.common.security.JsonAuthEntryPoint;
+import com.teamresource.common.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;

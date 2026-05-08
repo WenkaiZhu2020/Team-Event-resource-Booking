@@ -10,10 +10,10 @@ import com.teamresource.analytics.api.dto.ResourcePopularityResponse;
 import com.teamresource.analytics.api.dto.ResourceUsageMetricResponse;
 import com.teamresource.analytics.config.AnalyticsProperties;
 import com.teamresource.analytics.config.AnalyticsServiceConfiguration;
-import com.teamresource.analytics.config.InternalApiProperties;
-import com.teamresource.analytics.config.JwtProperties;
 import com.teamresource.analytics.config.OpenApiConfig;
 import com.teamresource.analytics.config.RabbitConfig;
+import com.teamresource.common.security.InternalApiProperties;
+import com.teamresource.common.security.JwtProperties;
 import com.teamresource.analytics.domain.BookingAnalyticsStatus;
 import com.teamresource.analytics.infra.messaging.AnalyticsEventConsumer;
 import com.teamresource.analytics.infra.messaging.DomainEventMessage;
@@ -93,7 +93,7 @@ class AnalyticsModuleCoverageTest {
                 .isEqualTo("DESK");
 
         AnalyticsProperties analyticsProperties = new AnalyticsProperties("queue", "dlq", 1000L, 2);
-        JwtProperties jwtProperties = new JwtProperties("issuer", Base64.getEncoder().encodeToString("12345678901234567890123456789012".getBytes()));
+        JwtProperties jwtProperties = new JwtProperties("issuer", Base64.getEncoder().encodeToString("12345678901234567890123456789012".getBytes()), null);
         InternalApiProperties internalApiProperties = new InternalApiProperties("X-Key", "secret");
         assertThat(analyticsProperties.queueName()).isEqualTo("queue");
         assertThat(jwtProperties.issuer()).isEqualTo("issuer");
@@ -200,11 +200,16 @@ class AnalyticsModuleCoverageTest {
         Binding workflowBinding = (Binding) invokeBeanMethod(rabbitConfig, "analyticsWorkflowBinding", new Class[]{Queue.class, TopicExchange.class}, new Object[]{queue, topicExchange});
         Binding deadLetterBinding = (Binding) invokeBeanMethod(rabbitConfig, "analyticsDeadLetterBinding", new Class[]{Queue.class, DirectExchange.class, AnalyticsProperties.class}, new Object[]{deadLetterQueue, deadLetterExchange, properties});
         Jackson2JsonMessageConverter converter = (Jackson2JsonMessageConverter) invokeBeanMethod(rabbitConfig, "jackson2JsonMessageConverter", new Class[]{ObjectMapper.class}, new Object[]{new ObjectMapper()});
+        org.aopalliance.intercept.MethodInterceptor interceptor = (org.aopalliance.intercept.MethodInterceptor) invokeBeanMethod(
+                rabbitConfig,
+                "rabbitListenerTraceMdcInterceptor",
+                new Class[0],
+                new Object[0]);
         SimpleRabbitListenerContainerFactory factory = (SimpleRabbitListenerContainerFactory) invokeBeanMethod(
                 rabbitConfig,
                 "rabbitListenerContainerFactory",
-                new Class[]{ConnectionFactory.class, Jackson2JsonMessageConverter.class},
-                new Object[]{mock(ConnectionFactory.class), converter});
+                new Class[]{ConnectionFactory.class, Jackson2JsonMessageConverter.class, org.aopalliance.intercept.MethodInterceptor.class, boolean.class},
+                new Object[]{mock(ConnectionFactory.class), converter, interceptor, true});
 
         assertThat(topicExchange.getName()).isEqualTo(RabbitConfig.DOMAIN_EVENTS_EXCHANGE);
         assertThat(deadLetterExchange.getName()).isEqualTo("analytics.dead-letter");

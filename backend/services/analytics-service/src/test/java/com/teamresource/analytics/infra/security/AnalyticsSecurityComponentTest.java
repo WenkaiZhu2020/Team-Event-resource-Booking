@@ -1,9 +1,13 @@
 package com.teamresource.analytics.infra.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.teamresource.analytics.config.InternalApiProperties;
-import com.teamresource.analytics.config.JwtProperties;
 import com.teamresource.analytics.config.SecurityConfig;
+import com.teamresource.common.security.InternalApiKeyFilter;
+import com.teamresource.common.security.InternalApiProperties;
+import com.teamresource.common.security.JsonAuthEntryPoint;
+import com.teamresource.common.security.JwtAuthenticationFilter;
+import com.teamresource.common.security.JwtProperties;
+import com.teamresource.common.security.JwtService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.FilterChain;
@@ -103,7 +107,7 @@ class AnalyticsSecurityComponentTest {
 
     @Test
     void jwtServiceAndFilterShouldParseAndAuthenticate() throws Exception {
-        JwtService jwtService = new JwtService(new JwtProperties("issuer", SECRET_BASE64));
+        JwtService jwtService = new JwtService(new JwtProperties("issuer", SECRET_BASE64, null));
         SecretKey secretKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(SECRET_BASE64));
         String token = Jwts.builder()
                 .issuer("issuer")
@@ -130,7 +134,7 @@ class AnalyticsSecurityComponentTest {
 
     @Test
     void jwtFilterShouldIgnoreExistingOrInvalidAuthentication() throws Exception {
-        JwtService jwtService = new JwtService(new JwtProperties("issuer", SECRET_BASE64));
+        JwtService jwtService = new JwtService(new JwtProperties("issuer", SECRET_BASE64, null));
         JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtService);
 
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken("existing", null, List.of()));
@@ -155,7 +159,7 @@ class AnalyticsSecurityComponentTest {
 
     @Test
     void jwtFilterShouldHandleMissingRolesClaimAsEmptyAuthorities() throws Exception {
-        JwtService jwtService = new JwtService(new JwtProperties("issuer", SECRET_BASE64));
+        JwtService jwtService = new JwtService(new JwtProperties("issuer", SECRET_BASE64, null));
         SecretKey secretKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(SECRET_BASE64));
         String token = Jwts.builder()
                 .issuer("issuer")
@@ -205,7 +209,7 @@ class AnalyticsSecurityComponentTest {
         SecurityFilterChain chain = (SecurityFilterChain) method.invoke(
                 securityConfig,
                 http,
-                new JwtAuthenticationFilter(new JwtService(new JwtProperties("issuer", SECRET_BASE64))),
+                new JwtAuthenticationFilter(new JwtService(new JwtProperties("issuer", SECRET_BASE64, null))),
                 new InternalApiKeyFilter(new InternalApiProperties("X-Internal-Api-Key", "secret")),
                 new JsonAuthEntryPoint(new ObjectMapper()));
 

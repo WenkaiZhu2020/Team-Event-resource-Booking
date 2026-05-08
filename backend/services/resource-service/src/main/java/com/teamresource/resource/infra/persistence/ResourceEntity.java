@@ -17,6 +17,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.hibernate.annotations.BatchSize;
 
 @Entity
 @Table(name = "resources", schema = "resources")
@@ -72,10 +73,12 @@ public class ResourceEntity {
 
     @OneToMany(mappedBy = "resource", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("dayOfWeek ASC, startTime ASC")
+    @BatchSize(size = 50)
     private List<AvailabilityRuleEntity> availabilityRules = new ArrayList<>();
 
     @OneToMany(mappedBy = "resource", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("startsAt ASC")
+    @BatchSize(size = 50)
     private List<MaintenanceSlotEntity> maintenanceSlots = new ArrayList<>();
 
     public UUID getResourceId() {

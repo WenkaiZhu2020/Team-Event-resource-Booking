@@ -8,7 +8,7 @@ import org.springframework.web.client.RestClient;
 
 @Configuration
 @EnableScheduling
-@EnableConfigurationProperties({JwtProperties.class, ClientProperties.class, ReminderProperties.class})
+@EnableConfigurationProperties({ClientProperties.class, ReminderProperties.class})
 public class NotificationServiceConfiguration {
 
     @Bean

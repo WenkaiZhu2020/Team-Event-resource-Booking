@@ -3,6 +3,7 @@ package com.teamresource.notification.messaging;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.teamresource.notification.infra.messaging.BookingNotificationConsumer;
+import com.teamresource.notification.infra.persistence.IdempotencyRecordRepository;
 import com.teamresource.notification.infra.persistence.NotificationRecordRepository;
 import com.teamresource.notification.infra.persistence.ProcessedEventRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +26,9 @@ class BookingDomainEventConsumerTest {
 
     @Autowired
     private NotificationRecordRepository notificationRecordRepository;
+
+    @Autowired
+    private IdempotencyRecordRepository idempotencyRecordRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -55,6 +59,59 @@ class BookingDomainEventConsumerTest {
         consumer.onBookingEvent(message);
 
         assertThat(processedEventRepository.count()).isEqualTo(consumedBefore + 1);
-        assertThat(notificationRecordRepository.count()).isEqualTo(notificationsBefore + 4);
+        assertThat(idempotencyRecordRepository.count()).isEqualTo(1);
+        assertThat(notificationRecordRepository.count()).isEqualTo(notificationsBefore + 2);
+    }
+
+    @Test
+    void shouldDiscardOlderOutOfOrderMessageForSameAggregate() {
+        long notificationsBefore = notificationRecordRepository.count();
+        long consumedBefore = processedEventRepository.count();
+
+        String bookingId = "4fa4c429-672d-4c12-aefe-88ea3bb5483f";
+        ObjectNode approvedPayload = payload("BOOKING_APPROVED", bookingId);
+        ObjectNode cancelledPayload = payload("BOOKING_CANCELLED", bookingId);
+
+        var newerMessage = new com.teamresource.notification.infra.messaging.DomainEventMessage(
+                java.util.UUID.randomUUID(),
+                "BOOKING",
+                java.util.UUID.fromString(bookingId),
+                "booking.approved",
+                approvedPayload,
+                java.time.OffsetDateTime.parse("2026-05-01T10:00:00Z")
+        );
+        var olderMessage = new com.teamresource.notification.infra.messaging.DomainEventMessage(
+                java.util.UUID.randomUUID(),
+                "BOOKING",
+                java.util.UUID.fromString(bookingId),
+                "booking.cancelled",
+                cancelledPayload,
+                java.time.OffsetDateTime.parse("2026-05-01T09:00:00Z")
+        );
+
+        consumer.onBookingEvent(newerMessage);
+        consumer.onBookingEvent(olderMessage);
+
+        assertThat(processedEventRepository.count()).isEqualTo(consumedBefore + 1);
+        assertThat(notificationRecordRepository.count()).isEqualTo(notificationsBefore + 2);
+        assertThat(idempotencyRecordRepository.findAll())
+                .singleElement()
+                .satisfies(record -> {
+                    assertThat(record.getAggregateId()).isEqualTo(java.util.UUID.fromString(bookingId));
+                    assertThat(record.getLastProcessedMessageId()).isEqualTo(newerMessage.messageId());
+                    assertThat(record.getLastProcessedEventType()).isEqualTo("booking.approved");
+                    assertThat(record.getLastProcessedEventAt()).isEqualTo(newerMessage.occurredAt());
+                });
+    }
+
+    private ObjectNode payload(String eventType, String bookingId) {
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("eventType", eventType);
+        payload.put("bookingId", bookingId);
+        payload.put("userId", "bc9fbeef-5792-4f46-b922-7613e653f848");
+        payload.put("resourceId", "80eaec43-b7ec-4e79-8615-c87b3eec7127");
+        payload.put("startAt", "2026-05-01T10:00:00Z");
+        payload.put("endAt", "2026-05-01T11:00:00Z");
+        return payload;
     }
 }

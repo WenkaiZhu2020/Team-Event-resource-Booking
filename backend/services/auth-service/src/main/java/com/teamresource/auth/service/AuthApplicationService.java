@@ -7,7 +7,7 @@ import com.teamresource.auth.domain.Role;
 import com.teamresource.auth.domain.UserStatus;
 import com.teamresource.auth.infra.persistence.AppUserEntity;
 import com.teamresource.auth.infra.persistence.AppUserRepository;
-import com.teamresource.auth.infra.security.JwtService;
+import com.teamresource.common.security.JwtService;
 import java.security.Principal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -15,14 +15,20 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AuthApplicationService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthApplicationService.class);
 
     private final AppUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -60,13 +66,13 @@ public class AuthApplicationService {
         user.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
 
         AppUserEntity saved = userRepository.save(user);
-        userProvisioningClient.provisionUser(
+        afterCommit("provision user profile", saved.getId(), () -> userProvisioningClient.provisionUser(
                 saved.getId(),
                 saved.getEmail(),
                 saved.getEmail(),
                 "UTC",
                 saved.getRoles().stream().map(Role::name).collect(Collectors.toSet())
-        );
+        ));
         return issueAuthResponse(saved);
     }
 
@@ -124,13 +130,13 @@ public class AuthApplicationService {
 
         AppUserEntity saved = userRepository.save(user);
         if (newUser) {
-            userProvisioningClient.provisionUser(
+            afterCommit("provision OAuth user profile", saved.getId(), () -> userProvisioningClient.provisionUser(
                     saved.getId(),
                     saved.getEmail(),
                     saved.getDisplayName() == null ? saved.getEmail() : saved.getDisplayName(),
                     "UTC",
                     saved.getRoles().stream().map(Role::name).collect(Collectors.toSet())
-            );
+            ));
         }
         return issueAuthResponse(saved);
     }
@@ -172,7 +178,8 @@ public class AuthApplicationService {
         user.setRoles(roles);
         user.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         AppUserEntity saved = userRepository.save(user);
-        userProvisioningClient.syncRoles(saved.getId(), roles.stream().map(Role::name).collect(Collectors.toSet()), "auth-service");
+        Set<String> syncedRoles = roles.stream().map(Role::name).collect(Collectors.toSet());
+        afterCommit("sync user roles", saved.getId(), () -> userProvisioningClient.syncRoles(saved.getId(), syncedRoles, "auth-service"));
         return new UserResponse(
                 saved.getId(),
                 saved.getEmail(),
@@ -203,5 +210,27 @@ public class AuthApplicationService {
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private void afterCommit(String operation, UUID userId, Runnable action) {
+        Runnable guardedAction = () -> {
+            try {
+                action.run();
+            } catch (Exception ex) {
+                log.warn("Failed to {} after auth transaction committed for userId={}", operation, userId, ex);
+            }
+        };
+
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            guardedAction.run();
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                guardedAction.run();
+            }
+        });
     }
 }

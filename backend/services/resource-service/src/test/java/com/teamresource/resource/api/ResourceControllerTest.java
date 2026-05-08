@@ -21,6 +21,8 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.context.annotation.FilterType;
@@ -34,8 +36,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         controllers = ResourceController.class,
         excludeAutoConfiguration = {SecurityAutoConfiguration.class, SecurityFilterAutoConfiguration.class},
         excludeFilters = {
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.teamresource.resource.infra.security.JwtAuthenticationFilter.class),
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.teamresource.resource.infra.security.InternalApiKeyFilter.class)
+                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.teamresource.common.security.JwtAuthenticationFilter.class),
+                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.teamresource.common.security.InternalApiKeyFilter.class)
         }
 )
 @AutoConfigureMockMvc(addFilters = false)
@@ -55,7 +57,7 @@ class ResourceControllerTest {
     void listShouldReturnCatalogPayload() throws Exception {
         UUID resourceId = UUID.randomUUID();
         UUID managerId = UUID.randomUUID();
-        resourceService.listResponse = List.of(new ResourceResponse(
+        resourceService.listResponse = new PageImpl<>(List.of(new ResourceResponse(
                 resourceId,
                 managerId,
                 "Main Hall",
@@ -73,12 +75,12 @@ class ResourceControllerTest {
                 List.of(),
                 OffsetDateTime.parse("2026-01-01T10:00:00Z"),
                 OffsetDateTime.parse("2026-01-02T10:00:00Z")
-        ));
+        )));
 
         mockMvc.perform(get("/api/v1/resources"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].name").value("Main Hall"))
-                .andExpect(jsonPath("$.data[0].requiresApproval").value(true));
+                .andExpect(jsonPath("$.data.content[0].name").value("Main Hall"))
+                .andExpect(jsonPath("$.data.content[0].requiresApproval").value(true));
     }
 
     @Test
@@ -150,7 +152,7 @@ class ResourceControllerTest {
 
     static class StubResourceService extends ResourceService {
 
-        private List<ResourceResponse> listResponse;
+        private Page<ResourceResponse> listResponse;
         private ResourceResponse deactivateResponse;
 
         StubResourceService() {
@@ -158,7 +160,7 @@ class ResourceControllerTest {
         }
 
         @Override
-        public List<ResourceResponse> listCatalog(String query, String type, String status, Boolean requiresApproval) {
+        public Page<ResourceResponse> listCatalog(String query, String type, String status, Boolean requiresApproval, int page, int size) {
             return listResponse;
         }
 

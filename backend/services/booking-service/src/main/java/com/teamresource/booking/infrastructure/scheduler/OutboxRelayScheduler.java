@@ -7,10 +7,12 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
+@Profile("stage2-layered-inactive")
 public class OutboxRelayScheduler {
 
     private final OutboxRepository outboxRepository;

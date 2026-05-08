@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import com.teamresource.auth.service.UserProvisioningClient;
+import com.teamresource.common.security.JwtProperties;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -19,7 +20,7 @@ class AuthConfigAndClientTest {
 
     @Test
     void shouldExposeConfigurationRecordsAndPasswordEncoder() {
-        JwtProperties jwtProperties = new JwtProperties("issuer", "secret", 60);
+        JwtProperties jwtProperties = new JwtProperties("issuer", "secret", 60L);
         UserServiceIntegrationProperties integrationProperties = new UserServiceIntegrationProperties(true, "http://localhost", "key");
         OAuth2LoginProperties oAuth2LoginProperties = new OAuth2LoginProperties(true, "http://success", "http://failure");
         PasswordEncoder encoder = new SecurityConfig().passwordEncoder();

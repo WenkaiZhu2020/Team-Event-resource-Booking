@@ -1,12 +1,12 @@
 package com.teamresource.auth.service;
 
 import com.teamresource.auth.api.dto.AuthResponse;
-import com.teamresource.auth.config.JwtProperties;
 import com.teamresource.auth.domain.Role;
 import com.teamresource.auth.domain.UserStatus;
 import com.teamresource.auth.infra.persistence.AppUserEntity;
 import com.teamresource.auth.infra.persistence.AppUserRepository;
-import com.teamresource.auth.infra.security.JwtService;
+import com.teamresource.common.security.JwtProperties;
+import com.teamresource.common.security.JwtService;
 import java.security.Principal;
 import java.time.OffsetDateTime;
 import java.util.Set;
@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,7 +51,7 @@ class AuthApplicationServiceTest {
         JwtService jwtService = new JwtService(new JwtProperties(
                 "team-resource-auth",
                 "VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==",
-                60
+                60L
         ));
         authApplicationService = new AuthApplicationService(
                 userRepository,
@@ -88,6 +89,21 @@ class AuthApplicationServiceTest {
         assertThat(response.tokens().expiresInSeconds()).isEqualTo(3600L);
         assertThat(response.user().email()).isEqualTo("user@example.com");
         assertThat(response.user().roles()).containsExactly("USER");
+    }
+
+    @Test
+    void registerShouldNotFailLocalRegistrationWhenProvisioningFailsAfterSave() {
+        when(userRepository.existsByEmailIgnoreCase("user@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("Password123")).thenReturn("encoded-password");
+        when(userRepository.save(any(AppUserEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        doThrow(new IllegalStateException("user-service unavailable"))
+                .when(userProvisioningClient)
+                .provisionUser(any(), any(), any(), any(), any());
+
+        AuthResponse response = authApplicationService.register("user@example.com", "Password123");
+
+        assertThat(response.user().email()).isEqualTo("user@example.com");
+        verify(userRepository).save(any(AppUserEntity.class));
     }
 
     @Test
@@ -365,7 +381,7 @@ class AuthApplicationServiceTest {
         assertThatCode(() -> new AuthApplicationService(userRepository, passwordEncoder, new JwtService(new JwtProperties(
                 "issuer",
                 "VEVBTV9SRVNPVVJDRV9NQU5BR0VNRU5UX0RFVl9TRUNSRVRfSFM1Nl8zMl9CWVRFUw==",
-                60
+                60L
         )), userProvisioningClient)).doesNotThrowAnyException();
     }
 
