@@ -1,8 +1,8 @@
 package com.teamresource.auth.config;
 
-import com.teamresource.auth.infra.security.JwtAuthenticationFilter;
 import com.teamresource.auth.infra.security.OAuth2AuthenticationFailureHandler;
 import com.teamresource.auth.infra.security.OAuth2AuthenticationSuccessHandler;
+import com.teamresource.common.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;

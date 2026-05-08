@@ -42,6 +42,7 @@ public class NotificationService {
     private final NotificationTemplateRegistry templateRegistry;
     private final EventReminderTemplateRenderer eventReminderTemplateRenderer;
     private final ObjectMapper objectMapper;
+    private final IdempotencyHashService idempotencyHashService;
     private final NotificationRepository notificationRepository;
     private final DeliveryAttemptRepository deliveryAttemptRepository;
 
@@ -51,7 +52,8 @@ public class NotificationService {
             NotificationSenderFactory notificationSenderFactory,
             NotificationTemplateRegistry templateRegistry,
             EventReminderTemplateRenderer eventReminderTemplateRenderer,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            IdempotencyHashService idempotencyHashService
     ) {
         this(
                 notificationRecordRepository,
@@ -60,6 +62,7 @@ public class NotificationService {
                 templateRegistry,
                 eventReminderTemplateRenderer,
                 objectMapper,
+                idempotencyHashService,
                 null,
                 null
         );
@@ -73,6 +76,7 @@ public class NotificationService {
             NotificationTemplateRegistry templateRegistry,
             EventReminderTemplateRenderer eventReminderTemplateRenderer,
             ObjectMapper objectMapper,
+            IdempotencyHashService idempotencyHashService,
             NotificationRepository notificationRepository,
             DeliveryAttemptRepository deliveryAttemptRepository
     ) {
@@ -82,12 +86,16 @@ public class NotificationService {
         this.templateRegistry = templateRegistry;
         this.eventReminderTemplateRenderer = eventReminderTemplateRenderer;
         this.objectMapper = objectMapper;
+        this.idempotencyHashService = idempotencyHashService;
         this.notificationRepository = notificationRepository;
         this.deliveryAttemptRepository = deliveryAttemptRepository;
     }
 
     @Transactional
     public void consume(DomainEventMessage eventMessage) {
+        if (!idempotencyHashService.shouldProcess(eventMessage)) {
+            return;
+        }
         if (!markProcessed(eventMessage.messageId(), eventMessage.eventType(), eventMessage.aggregateId())) {
             return;
         }

@@ -5,7 +5,6 @@ import com.teamresource.booking.application.command.CancelBookingCommand;
 import com.teamresource.booking.application.command.RejectBookingCommand;
 import com.teamresource.booking.common.error.ApiException;
 import com.teamresource.booking.domain.event.DomainEventPublisher;
-import com.teamresource.booking.domain.model.ApprovalStatus;
 import com.teamresource.booking.domain.model.BookingSearchCriteria;
 import com.teamresource.booking.domain.model.BookingStatus;
 import com.teamresource.booking.domain.model.WaitlistStatus;
@@ -176,13 +175,11 @@ public class BookingManagementService {
                 return;
             }
 
+            String eventType;
             if (booking.isApprovalRequired()) {
-                booking.setStatus(BookingStatus.PENDING_APPROVAL);
-                booking.setApprovalStatus(ApprovalStatus.PENDING);
+                eventType = transitionService.promoteToPendingApproval(booking, now);
             } else {
-                booking.setStatus(BookingStatus.APPROVED);
-                booking.setApprovalStatus(ApprovalStatus.NOT_REQUIRED);
-                booking.setConfirmedAt(now);
+                eventType = transitionService.promoteToConfirmed(booking, now);
             }
 
             BookingEntity saved = bookingRepository.save(booking);
@@ -192,11 +189,7 @@ public class BookingManagementService {
             next.setUpdatedAt(now);
             waitlistRepository.save(next);
 
-            if (saved.isApprovalRequired()) {
-                domainEventPublisher.publish(eventFactory.from("BOOKING_APPROVAL_REQUESTED", saved, "waitlist-promoted", now));
-            } else {
-                domainEventPublisher.publish(eventFactory.from("BOOKING_APPROVED", saved, "waitlist-promoted", now));
-            }
+            domainEventPublisher.publish(eventFactory.from(eventType, saved, "waitlist-promoted", now));
             domainEventPublisher.publish(eventFactory.from("BOOKING_WAITLIST_PROMOTED", saved, null, now));
         });
     }

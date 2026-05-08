@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         "com.teamresource.booking.api",
         "com.teamresource.booking.config",
         "com.teamresource.booking.infra",
+        "com.teamresource.booking.infrastructure.messaging",
         "com.teamresource.booking.service"
 })
 @EntityScan(basePackages = "com.teamresource.booking.infra.persistence")

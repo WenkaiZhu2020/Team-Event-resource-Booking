@@ -53,6 +53,7 @@ class NotificationServiceTest {
     private NotificationSenderStrategy emailSender;
 
     private NotificationService notificationService;
+    private StubIdempotencyHashService idempotencyHashService;
 
     @BeforeEach
     void setUp() {
@@ -61,6 +62,7 @@ class NotificationServiceTest {
         NotificationSenderFactory notificationSenderFactory = new NotificationSenderFactory(List.of(inAppSender, emailSender));
         NotificationTemplateRegistry templateRegistry = new NotificationTemplateRegistry(List.of());
         EventReminderTemplateRenderer eventReminderTemplateRenderer = new EventReminderTemplateRenderer();
+        idempotencyHashService = new StubIdempotencyHashService();
 
         notificationService = new NotificationService(
                 notificationRecordRepository,
@@ -68,7 +70,8 @@ class NotificationServiceTest {
                 notificationSenderFactory,
                 templateRegistry,
                 eventReminderTemplateRenderer,
-                new ObjectMapper()
+                new ObjectMapper(),
+                idempotencyHashService
         );
         lenient().doAnswer(invocation -> {
             NotificationRecordEntity record = invocation.getArgument(0);
@@ -140,5 +143,17 @@ class NotificationServiceTest {
         assertThatThrownBy(() -> notificationService.markRead(notificationId, UUID.randomUUID()))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
+    }
+
+    private static class StubIdempotencyHashService extends IdempotencyHashService {
+
+        StubIdempotencyHashService() {
+            super(null);
+        }
+
+        @Override
+        public boolean shouldProcess(com.teamresource.notification.infra.messaging.DomainEventMessage eventMessage) {
+            return true;
+        }
     }
 }

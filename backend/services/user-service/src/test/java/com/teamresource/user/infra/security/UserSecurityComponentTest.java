@@ -2,8 +2,11 @@ package com.teamresource.user.infra.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.teamresource.user.config.InternalApiProperties;
-import com.teamresource.user.config.JwtProperties;
+import com.teamresource.common.security.InternalApiKeyFilter;
+import com.teamresource.common.security.InternalApiProperties;
+import com.teamresource.common.security.JwtAuthenticationFilter;
+import com.teamresource.common.security.JwtProperties;
+import com.teamresource.common.security.JwtService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -30,7 +33,7 @@ class UserSecurityComponentTest {
 
     @Test
     void jwtServiceShouldParseAndValidateTokens() {
-        JwtService service = new JwtService(new JwtProperties("issuer", SECRET));
+        JwtService service = new JwtService(new JwtProperties("issuer", SECRET, null));
         SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(SECRET));
         String validToken = Jwts.builder()
                 .subject("user-1")
@@ -53,7 +56,7 @@ class UserSecurityComponentTest {
 
     @Test
     void jwtAuthenticationFilterShouldPopulateAuthorities() throws Exception {
-        JwtService service = new JwtService(new JwtProperties("issuer", SECRET));
+        JwtService service = new JwtService(new JwtProperties("issuer", SECRET, null));
         JwtAuthenticationFilter filter = new JwtAuthenticationFilter(service);
         String token = signedToken("user-123", List.of("USER", "ROLE_ADMIN"));
 
@@ -71,7 +74,7 @@ class UserSecurityComponentTest {
 
     @Test
     void jwtAuthenticationFilterShouldSkipInvalidTokens() throws Exception {
-        JwtService service = new JwtService(new JwtProperties("issuer", SECRET));
+        JwtService service = new JwtService(new JwtProperties("issuer", SECRET, null));
         JwtAuthenticationFilter filter = new JwtAuthenticationFilter(service);
 
         MockHttpServletRequest basicRequest = new MockHttpServletRequest();
@@ -89,7 +92,7 @@ class UserSecurityComponentTest {
 
     @Test
     void jwtAuthenticationFilterShouldIgnoreMissingHeaderAndNonListRoles() throws Exception {
-        JwtService service = new JwtService(new JwtProperties("issuer", SECRET));
+        JwtService service = new JwtService(new JwtProperties("issuer", SECRET, null));
         JwtAuthenticationFilter filter = new JwtAuthenticationFilter(service);
 
         MockHttpServletRequest missingHeaderRequest = new MockHttpServletRequest();

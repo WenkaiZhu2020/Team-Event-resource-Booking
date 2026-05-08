@@ -3,12 +3,12 @@ package com.teamresource.resource.api;
 import com.teamresource.resource.api.dto.ApiResponse;
 import com.teamresource.resource.api.dto.MaintenanceSlotRequest;
 import com.teamresource.resource.api.dto.MaintenanceSlotResponse;
+import com.teamresource.resource.api.dto.PageResponse;
 import com.teamresource.resource.api.dto.ResourceResponse;
 import com.teamresource.resource.api.dto.UpsertResourceRequest;
 import com.teamresource.resource.service.ResourceService;
 import jakarta.validation.Valid;
 import java.security.Principal;
-import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -64,18 +64,24 @@ public class ResourceController {
     }
 
     @GetMapping
-    public ApiResponse<List<ResourceResponse>> list(
+    public ApiResponse<PageResponse<ResourceResponse>> list(
             @RequestParam(required = false) String query,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) Boolean requiresApproval
+            @RequestParam(required = false) Boolean requiresApproval,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
     ) {
-        return ApiResponse.of(resourceService.listCatalog(query, type, status, requiresApproval));
+        return ApiResponse.of(PageResponse.fromPage(resourceService.listCatalog(query, type, status, requiresApproval, page, size)));
     }
 
     @GetMapping("/me")
-    public ApiResponse<List<ResourceResponse>> myResources(Principal principal) {
-        return ApiResponse.of(resourceService.myResources(parsePrincipal(principal)));
+    public ApiResponse<PageResponse<ResourceResponse>> myResources(
+            Principal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ApiResponse.of(PageResponse.fromPage(resourceService.myResources(parsePrincipal(principal), page, size)));
     }
 
     @GetMapping("/{resourceId}")

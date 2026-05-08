@@ -1,8 +1,8 @@
 package com.teamresource.booking.infrastructure.config;
 
-import com.teamresource.booking.infrastructure.security.InternalApiKeyFilter;
-import com.teamresource.booking.infrastructure.security.JwtAuthenticationFilter;
-import com.teamresource.booking.infrastructure.security.JsonAuthEntryPoint;
+import com.teamresource.common.security.InternalApiKeyFilter;
+import com.teamresource.common.security.JsonAuthEntryPoint;
+import com.teamresource.common.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

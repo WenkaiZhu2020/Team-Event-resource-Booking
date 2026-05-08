@@ -6,11 +6,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.teamresource.auth.api.dto.AuthResponse;
 import com.teamresource.auth.api.dto.TokenResponse;
 import com.teamresource.auth.api.dto.UserResponse;
-import com.teamresource.auth.config.JwtProperties;
 import com.teamresource.auth.config.OAuth2LoginProperties;
 import com.teamresource.auth.config.SecurityConfig;
 import com.teamresource.auth.domain.Role;
 import com.teamresource.auth.service.AuthApplicationService;
+import com.teamresource.common.security.JwtAuthenticationFilter;
+import com.teamresource.common.security.JwtProperties;
+import com.teamresource.common.security.JwtService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -55,7 +57,7 @@ class AuthSecurityAndOAuthTest {
 
     @Test
     void jwtServiceShouldGenerateParseAndValidateTokens() {
-        JwtService service = new JwtService(new JwtProperties("issuer", SECRET, 60));
+        JwtService service = new JwtService(new JwtProperties("issuer", SECRET, 60L));
         String token = service.generateAccessToken(UUID.randomUUID(), "user@example.com", Set.of(Role.USER, Role.ADMIN));
 
         assertThat(service.isValid(token)).isTrue();
@@ -67,7 +69,7 @@ class AuthSecurityAndOAuthTest {
 
     @Test
     void jwtAuthenticationFilterShouldAuthenticateRequest() throws Exception {
-        JwtService service = new JwtService(new JwtProperties("issuer", SECRET, 60));
+        JwtService service = new JwtService(new JwtProperties("issuer", SECRET, 60L));
         JwtAuthenticationFilter filter = new JwtAuthenticationFilter(service);
         String token = service.generateAccessToken(UUID.randomUUID(), "user@example.com", Set.of(Role.USER));
 
@@ -85,7 +87,7 @@ class AuthSecurityAndOAuthTest {
 
     @Test
     void jwtAuthenticationFilterShouldIgnoreMissingOrInvalidBearerHeader() throws Exception {
-        JwtService service = new JwtService(new JwtProperties("issuer", SECRET, 60));
+        JwtService service = new JwtService(new JwtProperties("issuer", SECRET, 60L));
         JwtAuthenticationFilter filter = new JwtAuthenticationFilter(service);
 
         MockHttpServletRequest requestWithoutHeader = new MockHttpServletRequest();
@@ -117,7 +119,7 @@ class AuthSecurityAndOAuthTest {
                 .expiration(Date.from(Instant.now().plusSeconds(60)))
                 .signWith(key, Jwts.SIG.HS256)
                 .compact();
-        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(new JwtService(new JwtProperties("issuer", SECRET, 60)));
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(new JwtService(new JwtProperties("issuer", SECRET, 60L)));
 
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI("/api/v1/auth/me");
@@ -132,7 +134,7 @@ class AuthSecurityAndOAuthTest {
 
     @Test
     void jwtServiceShouldReturnEmptyRolesForNonListClaim() {
-        JwtService service = new JwtService(new JwtProperties("issuer", SECRET, 60));
+        JwtService service = new JwtService(new JwtProperties("issuer", SECRET, 60L));
         SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(SECRET));
         String token = Jwts.builder()
                 .issuer("issuer")
@@ -287,7 +289,7 @@ class AuthSecurityAndOAuthTest {
     @Test
     void securityConfigShouldBuildFilterChainWithAndWithoutOauth2() throws Exception {
         SecurityConfig config = new SecurityConfig();
-        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(new JwtService(new JwtProperties("issuer", SECRET, 60)));
+        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(new JwtService(new JwtProperties("issuer", SECRET, 60L)));
         OAuth2AuthenticationSuccessHandler successHandler = new OAuth2AuthenticationSuccessHandler(
                 new StubAuthApplicationService(),
                 new OAuth2LoginProperties(true, "http://localhost:5173/success", "http://localhost:5173/failure")

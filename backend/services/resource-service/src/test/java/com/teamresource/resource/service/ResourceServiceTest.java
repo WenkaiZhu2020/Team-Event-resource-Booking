@@ -27,6 +27,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -105,6 +108,25 @@ class ResourceServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void listCatalogShouldPageAndSortInRepository() {
+        ResourceEntity resource = resource("Main Hall");
+        when(resourceRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(resource)));
+
+        var response = resourceService.listCatalog(null, null, null, null, 0, 500);
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(resourceRepository).findAll(any(Specification.class), pageableCaptor.capture());
+        Pageable pageable = pageableCaptor.getValue();
+
+        assertThat(pageable.getPageNumber()).isZero();
+        assertThat(pageable.getPageSize()).isEqualTo(100);
+        assertThat(pageable.getSort().getOrderFor("createdAt").getDirection().isDescending()).isTrue();
+        assertThat(response.getContent()).extracting("name").containsExactly("Main Hall");
+    }
+
+    @Test
     void addMaintenanceSlotShouldRejectOverlap() {
         UUID resourceId = UUID.randomUUID();
         UUID managerId = UUID.randomUUID();
@@ -141,5 +163,24 @@ class ResourceServiceTest {
         ))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+    }
+
+    private ResourceEntity resource(String name) {
+        ResourceEntity resource = new ResourceEntity();
+        resource.setResourceId(UUID.randomUUID());
+        resource.setManagerId(UUID.randomUUID());
+        resource.setName(name);
+        resource.setDescription("Shared space");
+        resource.setType(ResourceType.ROOM);
+        resource.setLocation("Floor 2");
+        resource.setCapacity(12);
+        resource.setStatus(ResourceStatus.ACTIVE);
+        resource.setApprovalMode(ApprovalMode.MANAGER_APPROVAL);
+        resource.setAllowWaitlist(true);
+        resource.setMaxBookingDurationMinutes(120);
+        resource.setAdvanceBookingWindowDays(14);
+        resource.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        resource.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        return resource;
     }
 }

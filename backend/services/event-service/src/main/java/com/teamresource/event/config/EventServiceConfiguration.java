@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestClient;
 
 @Configuration
-@EnableConfigurationProperties({JwtProperties.class, InternalApiProperties.class, ClientProperties.class, EventApprovalProperties.class})
+@EnableConfigurationProperties({ClientProperties.class, EventApprovalProperties.class})
 public class EventServiceConfiguration {
 
     @Bean

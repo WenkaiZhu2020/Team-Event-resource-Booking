@@ -16,14 +16,22 @@ public class BookingTransitionService {
     }
 
     public String cancel(BookingEntity booking, String reason, OffsetDateTime now) {
-        return stateMachine.forStatus(booking.getStatus()).cancel(booking, reason, now);
+        return stateMachine.cancel(booking, reason, now);
     }
 
     public String approve(BookingEntity booking, UUID approverUserId, OffsetDateTime now) {
-        return stateMachine.forStatus(booking.getStatus()).approve(booking, approverUserId, now);
+        return stateMachine.approve(booking, approverUserId, now);
     }
 
     public String reject(BookingEntity booking, UUID approverUserId, String reason, OffsetDateTime now) {
-        return stateMachine.forStatus(booking.getStatus()).reject(booking, approverUserId, reason, now);
+        return stateMachine.reject(booking, approverUserId, reason, now);
+    }
+
+    public String promoteToPendingApproval(BookingEntity booking, OffsetDateTime now) {
+        return stateMachine.promoteToPendingApproval(booking, now);
+    }
+
+    public String promoteToConfirmed(BookingEntity booking, OffsetDateTime now) {
+        return stateMachine.promoteToConfirmed(booking, now);
     }
 }

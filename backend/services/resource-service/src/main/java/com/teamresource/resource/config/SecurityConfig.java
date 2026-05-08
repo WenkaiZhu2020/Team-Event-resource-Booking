@@ -1,7 +1,7 @@
 package com.teamresource.resource.config;
 
-import com.teamresource.resource.infra.security.InternalApiKeyFilter;
-import com.teamresource.resource.infra.security.JwtAuthenticationFilter;
+import com.teamresource.common.security.InternalApiKeyFilter;
+import com.teamresource.common.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;

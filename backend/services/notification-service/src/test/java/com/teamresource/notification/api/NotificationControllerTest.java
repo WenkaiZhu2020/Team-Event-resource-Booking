@@ -105,7 +105,7 @@ class NotificationControllerTest {
         private NotificationResponse markReadResponse;
 
         StubNotificationService() {
-            super(null, null, null, null, null, new ObjectMapper().registerModule(new JavaTimeModule()));
+            super(null, null, null, null, null, new ObjectMapper().registerModule(new JavaTimeModule()), new StubIdempotencyHashService());
         }
 
         @Override
@@ -121,6 +121,18 @@ class NotificationControllerTest {
         @Override
         public NotificationResponse markRead(UUID notificationId, UUID userId) {
             return markReadResponse;
+        }
+    }
+
+    static class StubIdempotencyHashService extends com.teamresource.notification.service.IdempotencyHashService {
+
+        StubIdempotencyHashService() {
+            super(null);
+        }
+
+        @Override
+        public boolean shouldProcess(com.teamresource.notification.infra.messaging.DomainEventMessage eventMessage) {
+            return true;
         }
     }
 

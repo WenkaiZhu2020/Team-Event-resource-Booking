@@ -2,8 +2,8 @@ package com.teamresource.booking.infrastructure.messaging;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.teamresource.booking.domain.repository.ConsumedMessageRepository;
-import com.teamresource.booking.infrastructure.persistence.entity.ConsumedMessageEntity;
+import com.teamresource.booking.infra.persistence.ConsumedMessageEntity;
+import com.teamresource.booking.infra.persistence.ConsumedMessageRepository;
 import com.teamresource.booking.service.BookingSagaCompensationService;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -41,7 +41,7 @@ public class BookingSagaCompensationEventConsumer {
         if (messageId == null || messageId.isBlank()) {
             messageId = payloadHash(body);
         }
-        if (consumedMessageRepository.exists(source, messageId)) {
+        if (consumedMessageRepository.existsBySourceAndMessageId(source, messageId)) {
             return;
         }
 
