@@ -1,32 +1,46 @@
-import { Link, Outlet } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 
 export function AuthLayout() {
   return (
     <main className="auth-shell">
       <section className="auth-column">
         <div className="auth-copy page-enter">
-          <p className="eyebrow">Team Resource</p>
-          <h1>Management Console</h1>
-          <p className="helper-copy">
-            Events, resources, approvals, notifications, and reporting.
-          </p>
-          <div className="auth-feature-grid">
-            <article>
-              <strong>Role-aware access</strong>
-              <span>JWT-backed navigation and approval visibility.</span>
-            </article>
-            <article>
-              <strong>Conflict-safe booking</strong>
-              <span>Shared resource reservation with approval and waitlist handling.</span>
-            </article>
-            <article>
-              <strong>Operational insight</strong>
-              <span>Dashboard metrics and notification history for walkthrough-ready demos.</span>
-            </article>
+          <div className="auth-hero-copy">
+            <p className="eyebrow">Team Resource</p>
+            <h1>Management Console</h1>
+            <p className="helper-copy">
+              Event operations, shared inventory, approvals, and booking pressure in one live workspace.
+            </p>
           </div>
-          <div className="auth-links">
-            <Link to="/auth/login">Login</Link>
-            <Link to="/auth/register">Register</Link>
+          <div className="auth-visual" aria-hidden="true">
+            <div className="auth-visual-map">
+              <span className="map-node node-a" />
+              <span className="map-node node-b" />
+              <span className="map-node node-c" />
+              <span className="map-route route-a" />
+              <span className="map-route route-b" />
+            </div>
+            <div className="auth-preview-card card-main">
+              <span>Approval queue</span>
+              <strong>18</strong>
+              <small>4 urgent reviews</small>
+            </div>
+            <div className="auth-preview-card card-side">
+              <span>Room A-12</span>
+              <strong>Reserved</strong>
+              <small>15:00 - 17:00</small>
+            </div>
+            <div className="auth-preview-card card-mini">
+              <span>Events</span>
+              <strong>Live</strong>
+            </div>
+            <div className="auth-signal-row">
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
           </div>
         </div>
         <div className="page-enter auth-panel-wrap">

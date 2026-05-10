@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { PageErrorBoundary } from '../../components/PageErrorBoundary';
 import { useAppContext } from '../state/AppContext';
 
 export function AppShellLayout() {
@@ -71,7 +72,9 @@ export function AppShellLayout() {
           </div>
         </header>
         <div className="page-stage page-enter">
-          <Outlet />
+          <PageErrorBoundary key={location.pathname}>
+            <Outlet />
+          </PageErrorBoundary>
         </div>
       </section>
     </main>

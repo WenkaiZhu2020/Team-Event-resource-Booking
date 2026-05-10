@@ -23,6 +23,16 @@ interface ApiResponse<T> {
   data: T;
 }
 
+interface PageResponse<T> {
+  content: T[];
+}
+
+interface IdentifiedRecord {
+  id?: string;
+  bookingId?: string;
+  notificationId?: string;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly details?: unknown;
@@ -171,15 +181,17 @@ export async function checkInEventRegistration(eventId: string, registrationId: 
 }
 
 export async function getResources() {
-  return request<ResourceItem[]>('/v1/resources');
+  const resources = await request<ResourceItem[] | PageResponse<ResourceItem>>('/v1/resources');
+  return Array.isArray(resources) ? resources : resources.content;
 }
 
 export async function getMyBookings() {
-  return request<BookingItem[]>('/v1/bookings/me');
+  const bookings = await request<Array<BookingItem & { id?: string }>>('/v1/bookings/me');
+  return bookings.map((booking) => normalizeIdField<BookingItem>(booking, 'bookingId'));
 }
 
 export async function createBooking(payload: BookingDraft) {
-  return request<BookingItem>('/v1/bookings', {
+  const booking = await request<BookingItem & { id?: string }>('/v1/bookings', {
     method: 'POST',
     body: JSON.stringify({
       resourceId: payload.resourceId,
@@ -189,16 +201,22 @@ export async function createBooking(payload: BookingDraft) {
       purpose: payload.purpose
     })
   });
+  return normalizeIdField<BookingItem>(booking, 'bookingId');
 }
 
 export async function cancelBooking(bookingId: string) {
-  return request<BookingItem>(`/v1/bookings/${bookingId}/cancel`, {
+  const booking = await request<BookingItem & { id?: string }>(`/v1/bookings/${bookingId}/cancel`, {
     method: 'POST'
   });
+  return normalizeIdField<BookingItem>(booking, 'bookingId');
 }
 
 export async function getNotifications() {
-  return request<NotificationItem[]>('/v1/notifications/me');
+  const notifications = await request<Array<NotificationItem & { id?: string; title?: string }>>('/v1/notifications/me');
+  return notifications.map((notification) => ({
+    ...normalizeIdField<NotificationItem>(notification, 'notificationId'),
+    subject: notification.subject ?? notification.title ?? ''
+  }));
 }
 
 export async function getUnreadCount() {
@@ -263,4 +281,14 @@ function toApiDateTime(value: string) {
     return null;
   }
   return new Date(value).toISOString();
+}
+
+function normalizeIdField<T extends IdentifiedRecord>(item: T, idField: 'bookingId' | 'notificationId'): T {
+  if (!item[idField] && item.id) {
+    return {
+      ...item,
+      [idField]: item.id
+    };
+  }
+  return item;
 }
